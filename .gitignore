@@ -1,0 +1,49 @@
+# --- Base de datos y Archivos Locales ---
+# Base de datos SQLite local
+/database.sqlite
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+*.db
+
+# --- Archivos de Configuración Sensibles / Entorno ---
+.env
+.env.local
+.env.*.local
+
+# --- Subidas de Usuarios ---
+# Ignorar todos los archivos subidos por usuarios, pero mantener la estructura de la carpeta
+/assets/uploads/*
+!/assets/uploads/.gitkeep
+
+# --- Archivos del Sistema Operativo ---
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Archivos de Editores e IDEs ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# --- Logs y Temporales ---
+*.log
+error_log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Dependencias (Composer / Node.js en caso de usarse en el futuro) ---
+/vendor/
+/node_modules/
