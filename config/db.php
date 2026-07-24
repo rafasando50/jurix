@@ -4,8 +4,12 @@
  * Sistema de Gestión Documental y de Poderes Jurídicos
  */
 
-// Cambiar a true cuando subas el sistema a Banahosting (Producción)
-define('IS_PRODUCTION', true);
+// Auto-detectar si es desarrollo local o servidor de producción
+$is_local = (php_sapi_name() === 'cli' || 
+             (isset($_SERVER['HTTP_HOST']) && ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1')) ||
+             (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] === 'localhost'));
+
+define('IS_PRODUCTION', !$is_local);
 
 // Parámetros de conexión de la base de datos (Modificar con tus datos de Banahosting)
 define('DB_HOST', 'localhost');
@@ -13,6 +17,7 @@ define('DB_NAME', 'ykihkdau_jurix');
 define('DB_USER', 'ykihkdau_jurix_user');
 define('DB_PASS', 'MI8e)4X%t*u)');
 define('DB_CHARSET', 'utf8mb4');
+
 
 try {
     // Intentar conexión MySQL primero
@@ -55,6 +60,24 @@ try {
             password TEXT NOT NULL,
             activo INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+        
+        // Inicializar tabla de documentos si no existe
+        $pdo->exec("CREATE TABLE IF NOT EXISTS documentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero_instrumento TEXT NOT NULL,
+            libro TEXT NOT NULL,
+            fecha_expedicion TEXT NOT NULL,
+            notaria TEXT NOT NULL,
+            ciudad_notaria TEXT NOT NULL,
+            notario TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            subtipo TEXT NOT NULL DEFAULT 'ninguno',
+            concepto TEXT NOT NULL,
+            vigencia TEXT DEFAULT NULL,
+            archivo_path TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
         
         // Verificar si existe el usuario administrador de prueba

@@ -1,0 +1,284 @@
+<?php
+/**
+ * Listado de Documentos con Filtros y Búsqueda
+ * Ruta: /documentos.php
+ */
+
+// Incluir conexión a base de datos
+require_once __DIR__ . '/config/db.php';
+
+// Incluir cabecera
+require_once __DIR__ . '/includes/header.php';
+
+// Incluir barra lateral
+require_once __DIR__ . '/includes/sidebar.php';
+
+// Obtener parámetros de búsqueda y filtros
+$q = isset($_GET['q']) ? trim($_GET['q']) : '';
+$tipo = isset($_GET['tipo']) ? trim($_GET['tipo']) : '';
+$subtipo = isset($_GET['subtipo']) ? trim($_GET['subtipo']) : '';
+
+// Construir consulta SQL
+$sql = "SELECT * FROM documentos WHERE 1=1";
+$params = [];
+
+if (!empty($tipo)) {
+    $sql .= " AND tipo = :tipo";
+    $params['tipo'] = $tipo;
+}
+
+if (!empty($subtipo)) {
+    $sql .= " AND subtipo = :subtipo";
+    $params['subtipo'] = $subtipo;
+}
+
+if (!empty($q)) {
+    $sql .= " AND (numero_instrumento LIKE :q OR libro LIKE :q OR notaria LIKE :q OR ciudad_notaria LIKE :q OR notario LIKE :q OR concepto LIKE :q)";
+    $params['q'] = '%' . $q . '%';
+}
+
+$sql .= " ORDER BY fecha_expedicion DESC, created_at DESC";
+
+try {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $documentos = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al consultar documentos: " . $e->getMessage());
+    $documentos = [];
+}
+
+// Helper para determinar el estado de vigencia
+function getVigenciaBadge($fecha_vigencia) {
+    if (empty($fecha_vigencia)) {
+        return '<span class="badge bg-secondary rounded-pill px-2 py-1"><i class="fa-solid fa-infinity me-1"></i> Permanente</span>';
+    }
+    
+    $hoy = date('Y-m-d');
+    if ($fecha_vigencia < $hoy) {
+        return '<span class="badge bg-danger rounded-pill px-2 py-1"><i class="fa-solid fa-calendar-xmark me-1"></i> Expirado (' . date('d/m/Y', strtotime($fecha_vigencia)) . ')</span>';
+    } else {
+        return '<span class="badge bg-success rounded-pill px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i> Vigente (' . date('d/m/Y', strtotime($fecha_vigencia)) . ')</span>';
+    }
+}
+?>
+
+<!-- Área de Contenido Principal -->
+<div class="content-area">
+    
+    <!-- Barra Superior de Navegación Rápida -->
+    <nav class="navbar navbar-top navbar-expand-lg navbar-light bg-transparent">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Documentos</span>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <a href="documento_nuevo.php" class="btn btn-primary-custom py-2 px-3 rounded-3 d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Nuevo Documento
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <div class="container-fluid p-0">
+        
+        <!-- Tarjeta de Controladores: Filtros y Búsqueda -->
+        <div class="p-4 rounded-4 bg-white mb-4" style="border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
+            
+            <!-- Barra de Búsqueda -->
+            <form method="GET" action="documentos.php" class="row g-3 mb-4">
+                <?php if (!empty($tipo)): ?>
+                    <input type="hidden" name="tipo" value="<?php echo htmlspecialchars($tipo); ?>">
+                <?php endif; ?>
+                <?php if (!empty($subtipo)): ?>
+                    <input type="hidden" name="subtipo" value="<?php echo htmlspecialchars($subtipo); ?>">
+                <?php endif; ?>
+                <div class="col-md-9 col-lg-10">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-radius: 12px 0 0 12px; border-color: #cbd5e1;">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" name="q" placeholder="Buscar por instrumento, libro, notaría, notario, ciudad, concepto..." value="<?php echo htmlspecialchars($q); ?>" style="border-radius: 0 12px 12px 0;">
+                    </div>
+                </div>
+                <div class="col-md-3 col-lg-2 d-grid">
+                    <button type="submit" class="btn btn-primary-custom py-2">Buscar</button>
+                </div>
+            </form>
+
+            <!-- Filtros Rápidos (Pills) -->
+            <div>
+                <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Categoría:</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="documentos.php<?php echo !empty($q) ? '?q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo (empty($tipo) && empty($subtipo)) ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                        Todos
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=constitutiva<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'constitutiva') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                        Acta Constitutiva
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=asamblea_ordinaria<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_ordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                        Asamblea Ordinaria
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=asamblea_extraordinaria<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_extraordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                        Asamblea Extraordinaria
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=poder_amplio<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_amplio') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                        Poder Amplio
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=poder_especifico<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_especifico') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                        Poder Específico
+                    </a>
+                    
+                    <a href="documentos.php?subtipo=poder_actas_administrativas<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_actas_administrativas') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                        Poder Actas Adm.
+                    </a>
+                    
+                    <a href="documentos.php?tipo=revocacion<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
+                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($tipo === 'revocacion') ? 'btn-danger' : 'btn-light text-dark border'; ?>">
+                        Revocación de Poderes
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Tabla de Documentos -->
+        <div class="p-4 rounded-4 bg-white" style="border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="--bs-table-bg: transparent; --bs-table-border-color: #e2e8f0;">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Instrumento / Libro</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Tipo / Subtipo</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Fecha Expedición</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Notaría / Notario / Ciudad</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Concepto</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Vigencia</th>
+                            <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">PDF</th>
+                            <th scope="col" class="text-muted fw-semibold py-3 text-end" style="font-size: 0.85rem;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($documentos)): ?>
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="fa-regular fa-folder-open d-block fs-1 mb-3 opacity-50"></i>
+                                    No se encontraron documentos registrados con los filtros seleccionados.
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($documentos as $doc): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">No. <?php echo htmlspecialchars($doc['numero_instrumento']); ?></div>
+                                        <small class="text-muted">Libro: <?php echo htmlspecialchars($doc['libro']); ?></small>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $tipoLabel = '';
+                                        $badgeClass = '';
+                                        if ($doc['tipo'] === 'acta') {
+                                            $sub = $doc['subtipo'];
+                                            if ($sub === 'constitutiva') $tipoLabel = 'Acta Constitutiva';
+                                            elseif ($sub === 'asamblea_ordinaria') $tipoLabel = 'Asamblea Ordinaria';
+                                            elseif ($sub === 'asamblea_extraordinaria') $tipoLabel = 'Asamblea Extraordinaria';
+                                            else $tipoLabel = 'Acta';
+                                            $badgeClass = 'bg-primary';
+                                        } elseif ($doc['tipo'] === 'poder') {
+                                            $sub = $doc['subtipo'];
+                                            if ($sub === 'poder_amplio') $tipoLabel = 'Poder Amplio';
+                                            elseif ($sub === 'poder_especifico') $tipoLabel = 'Poder Específico';
+                                            elseif ($sub === 'poder_actas_administrativas') $tipoLabel = 'Poder Actas Adm.';
+                                            else $tipoLabel = 'Poder';
+                                            $badgeClass = 'bg-success';
+                                        } else {
+                                            $tipoLabel = 'Revocación';
+                                            $badgeClass = 'bg-danger';
+                                        }
+                                        ?>
+                                        <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                            <?php echo htmlspecialchars($tipoLabel); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="text-dark"><?php echo date('d/m/Y', strtotime($doc['fecha_expedicion'])); ?></div>
+                                    </td>
+                                    <td>
+                                        <div class="text-dark fw-semibold" style="font-size: 0.9rem;">Notaría No. <?php echo htmlspecialchars($doc['notaria']); ?></div>
+                                        <div class="text-muted" style="font-size: 0.8rem;"><?php echo htmlspecialchars($doc['notario']); ?></div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($doc['ciudad_notaria']); ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="text-muted" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">
+                                            <?php echo htmlspecialchars($doc['concepto']); ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php echo getVigenciaBadge($doc['vigencia']); ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($doc['archivo_path'])): ?>
+                                            <a href="<?php echo htmlspecialchars($doc['archivo_path']); ?>" target="_blank" class="btn btn-outline-danger btn-sm rounded-3 py-1 px-2">
+                                                <i class="fa-solid fa-file-pdf"></i> PDF
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="text-muted" style="font-size: 0.8rem;">Ninguno</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <a href="documento_editar.php?id=<?php echo $doc['id']; ?>" class="btn btn-outline-warning btn-sm rounded-3 py-1 px-2" title="Editar">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger btn-sm rounded-3 py-1 px-2" title="Eliminar" onclick="confirmarEliminar(<?php echo $doc['id']; ?>)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+function confirmarEliminar(id) {
+    if (confirm("¿Está seguro de que desea eliminar este documento? Esta acción no se puede deshacer y borrará el archivo PDF asociado.")) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'documento_eliminar.php';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'id';
+        input.value = id;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+<?php
+// Incluir el pie de página
+require_once __DIR__ . '/includes/footer.php';
+?>

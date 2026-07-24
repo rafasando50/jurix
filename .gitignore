@@ -47,3 +47,6 @@ yarn-error.log*
 # --- Dependencias (Composer / Node.js en caso de usarse en el futuro) ---
 /vendor/
 /node_modules/
+
+# --- Documentación Local ---
+/README.md

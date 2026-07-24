@@ -4,6 +4,10 @@
  * Ruta: /includes/sidebar.php
  */
 ?>
+<?php
+$current_page = basename($_SERVER['PHP_SELF']);
+$current_tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
+?>
 <nav class="sidebar">
     <div class="sidebar-header">
         <div class="logo-container m-0" style="width: 40px; height: 40px; border-radius: 10px;">
@@ -13,31 +17,37 @@
     </div>
 
     <ul class="components">
-        <li class="active">
+        <li class="<?php echo ($current_page === 'dashboard.php') ? 'active' : ''; ?>">
             <a href="dashboard.php">
                 <i class="fa-solid fa-chart-line"></i>
                 <span>Dashboard</span>
             </a>
         </li>
         <li class="mt-4">
-            <span class="text-uppercase text-muted px-3 fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Gestión de Poderes</span>
+            <span class="text-uppercase text-muted px-3 fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Gestión Documental</span>
         </li>
-        <li>
-            <a href="#">
+        <li class="<?php echo ($current_page === 'documentos.php' && $current_tipo === '') ? 'active' : ''; ?>">
+            <a href="documentos.php">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Todos los Documentos</span>
+            </a>
+        </li>
+        <li class="<?php echo ($current_page === 'documentos.php' && $current_tipo === 'acta') ? 'active' : ''; ?>">
+            <a href="documentos.php?tipo=acta">
                 <i class="fa-solid fa-file-signature"></i>
-                <span>Actas Constitutivas</span>
+                <span>Actas y Asambleas</span>
             </a>
         </li>
-        <li>
-            <a href="#">
-                <i class="fa-solid fa-users-rectangle"></i>
-                <span>Asambleas</span>
-            </a>
-        </li>
-        <li>
-            <a href="#">
+        <li class="<?php echo ($current_page === 'documentos.php' && $current_tipo === 'poder') ? 'active' : ''; ?>">
+            <a href="documentos.php?tipo=poder">
                 <i class="fa-solid fa-scroll"></i>
-                <span>Poderes Otorgados</span>
+                <span>Poderes Jurídicos</span>
+            </a>
+        </li>
+        <li class="<?php echo ($current_page === 'documentos.php' && $current_tipo === 'revocacion') ? 'active' : ''; ?>">
+            <a href="documentos.php?tipo=revocacion">
+                <i class="fa-solid fa-file-circle-xmark"></i>
+                <span>Revocaciones</span>
             </a>
         </li>
         <li class="mt-4">
