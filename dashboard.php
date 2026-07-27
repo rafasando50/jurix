@@ -93,54 +93,34 @@ try {
         <!-- Fila de Estadísticas Rápidas (Poderes y Actas) -->
         <div class="row g-4 mb-4">
             <!-- Total de Documentos -->
-            <div class="col-md-6 col-lg-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Documentos</span>
-                        <h3 class="fw-bold mb-0 text-dark"><?php echo $total_docs; ?></h3>
-                    </div>
-                    <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-4" style="font-size: 1.5rem;">
-                        <i class="fa-solid fa-file-pdf"></i>
-                    </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #1d4ed8 !important;">
+                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Documentos</span>
+                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_docs; ?></h3>
                 </div>
             </div>
 
             <!-- Actas Constitutivas -->
-            <div class="col-md-6 col-lg-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Actas / Asambleas</span>
-                        <h3 class="fw-bold mb-0 text-dark"><?php echo $total_actas; ?></h3>
-                    </div>
-                    <div class="bg-info bg-opacity-10 text-info p-3 rounded-4" style="font-size: 1.5rem;">
-                        <i class="fa-solid fa-gavel"></i>
-                    </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #0e7490 !important;">
+                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Actas / Asambleas</span>
+                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_actas; ?></h3>
                 </div>
             </div>
 
             <!-- Poderes Amplios -->
-            <div class="col-md-6 col-lg-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Poderes Amplios</span>
-                        <h3 class="fw-bold mb-0 text-dark"><?php echo $total_poderes_amplios; ?></h3>
-                    </div>
-                    <div class="bg-success bg-opacity-10 text-success p-3 rounded-4" style="font-size: 1.5rem;">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #15803d !important;">
+                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Poderes Amplios</span>
+                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_poderes_amplios; ?></h3>
                 </div>
             </div>
 
             <!-- Poderes Especiales -->
-            <div class="col-md-6 col-lg-3">
-                <div class="stat-card d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Poderes Especiales/Adm</span>
-                        <h3 class="fw-bold mb-0 text-dark"><?php echo $total_poderes_especiales; ?></h3>
-                    </div>
-                    <div class="bg-warning bg-opacity-10 text-warning p-3 rounded-4" style="font-size: 1.5rem;">
-                        <i class="fa-solid fa-key"></i>
-                    </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #b45309 !important;">
+                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Poderes Especiales/Adm</span>
+                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_poderes_especiales; ?></h3>
                 </div>
             </div>
         </div>
@@ -187,7 +167,7 @@ try {
         <!-- Fila de Accesos Rápidos y Última Actividad -->
         <div class="row g-4">
             <!-- Módulo de Documentos - Contexto del Negocio -->
-            <div class="col-lg-8">
+            <div class="col-xl-8">
                 <div class="p-4 rounded-4" style="background: #ffffff; border: 1px solid #e2e8f0; min-height: 350px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <h4 class="fw-bold text-dark mb-0">Últimos Documentos Registrados</h4>
@@ -307,7 +287,7 @@ try {
             </div>
 
             <!-- Accesos directos y ayuda -->
-            <div class="col-lg-4">
+            <div class="col-xl-4">
                 <div class="p-4 rounded-4 mb-4" style="background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     <h5 class="fw-bold text-dark mb-3">Información del Negocio</h5>
                     <div class="d-flex flex-column gap-3">

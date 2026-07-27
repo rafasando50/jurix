@@ -286,3 +286,105 @@ body.dashboard-body {
         transform: translateY(0);
     }
 }
+
+/* Responsividad para Laptops y Pantallas Medianas (1200px) */
+@media (max-width: 1200px) {
+    .sidebar {
+        min-width: 230px;
+        max-width: 230px;
+    }
+    .content-area {
+        padding: 1.75rem;
+    }
+}
+
+/* Responsividad para Laptops Pequeñas (1024px) */
+@media (max-width: 1024px) {
+    .sidebar {
+        min-width: 210px;
+        max-width: 210px;
+    }
+    .sidebar .sidebar-header h4 {
+        font-size: 1.1rem !important;
+    }
+    .sidebar ul li a {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.8rem;
+        gap: 8px;
+    }
+    .content-area {
+        padding: 1.25rem;
+    }
+    .navbar-top {
+        padding: 0.6rem 1.25rem;
+        margin-bottom: 1.5rem;
+        border-radius: 12px;
+    }
+    .stat-card {
+        padding: 1.1rem;
+    }
+    .stat-card h3 {
+        font-size: 1.5rem !important;
+    }
+    .stat-card p {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    .table th, .table td {
+        font-size: 0.85rem;
+        padding: 0.75rem 0.5rem !important;
+    }
+}
+
+/* Responsividad para Tablets y Móviles (768px o menor) */
+@media (max-width: 768px) {
+    .dashboard-wrapper {
+        flex-direction: column;
+    }
+    .sidebar {
+        min-width: 100%;
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar .sidebar-header {
+        padding: 1rem 1.5rem;
+    }
+    .sidebar ul.components {
+        padding: 0.5rem 1rem;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+    .sidebar ul li {
+        padding: 0;
+        margin-bottom: 0;
+    }
+    .sidebar ul li a {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    .sidebar .mt-4 {
+        display: none !important; /* Ocultar títulos de sección */
+    }
+    .sidebar .p-3.border-top.mt-auto {
+        margin-top: 0 !important;
+        border-top: 1px solid var(--border-color) !important;
+        padding: 1rem 1.5rem !important;
+    }
+    .content-area {
+        padding: 1rem;
+    }
+    .navbar-top {
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .navbar-top .ms-auto {
+        margin-left: 0 !important;
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
