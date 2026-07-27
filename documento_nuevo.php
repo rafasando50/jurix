@@ -19,6 +19,15 @@ if ($_SESSION['user_rol'] === 'usuario') {
 // Incluir barra lateral
 require_once __DIR__ . '/includes/sidebar.php';
 
+// Obtener lista de poderes/actas para el selector de revocación
+$documentos_candidatos = [];
+try {
+    $stmt_cand = $pdo->query("SELECT id, numero_instrumento, libro, tipo, concepto FROM documentos WHERE tipo IN ('poder', 'acta') ORDER BY numero_instrumento ASC");
+    $documentos_candidatos = $stmt_cand->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al obtener candidatos de revocación: " . $e->getMessage());
+}
+
 $error_message = "";
 $success_message = "";
 
@@ -35,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subtipo = isset($_POST['subtipo']) ? trim($_POST['subtipo']) : 'ninguno';
     $concepto = isset($_POST['concepto']) ? trim($_POST['concepto']) : '';
     $personas_acreditadas = isset($_POST['personas_acreditadas']) ? trim($_POST['personas_acreditadas']) : '';
+    $revoca_documento_id = (isset($_POST['revoca_documento_id']) && $_POST['revoca_documento_id'] !== '') ? (int)$_POST['revoca_documento_id'] : null;
     
     // Vigencia
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
@@ -76,8 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error_message)) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO documentos 
-                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path) 
-                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path)");
+                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path, revoca_documento_id) 
+                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path, :revoca_documento_id)");
                 
                 $stmt->execute([
                     'numero_instrumento' => $numero_instrumento,
@@ -90,7 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'subtipo' => $subtipo,
                     'concepto' => $concepto,
                     'vigencia' => $vigencia,
-                    'archivo_path' => $archivo_path
+                    'archivo_path' => $archivo_path,
+                    'revoca_documento_id' => $revoca_documento_id
                 ]);
 
                 $documento_id = $pdo->lastInsertId();
@@ -205,6 +216,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <select class="form-control" id="subtipo" name="subtipo" required>
                                     <option value="ninguno" selected>No aplica para este tipo</option>
                                 </select>
+                            </div>
+
+                            <div class="col-12 d-none" id="grupo_revocacion">
+                                <label for="revoca_documento_id" class="form-label fw-bold text-dark">Poder / Acta que Revoca *</label>
+                                <select class="form-control" id="revoca_documento_id" name="revoca_documento_id">
+                                    <option value="">-- Seleccione el documento a revocar --</option>
+                                    <?php foreach ($documentos_candidatos as $cand): ?>
+                                        <option value="<?php echo $cand['id']; ?>">
+                                            [<?php echo ($cand['tipo'] === 'poder') ? 'Poder' : 'Acta'; ?>] Instrumento: <?php echo htmlspecialchars($cand['numero_instrumento']); ?>, Libro: <?php echo htmlspecialchars($cand['libro']); ?> - <?php echo htmlspecialchars(substr($cand['concepto'], 0, 80)); ?>...
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <small class="text-muted">Seleccione el documento que quedará revocado (inhabilitado) por esta revocación.</small>
                             </div>
                         </div>
 
@@ -344,6 +368,18 @@ function actualizarSubtipos() {
         el.value = 'ninguno';
         el.textContent = 'No aplica (Revocación)';
         subtipoSelect.appendChild(el);
+    }
+
+    // Mostrar/ocultar selector de revocación
+    const grupoRevocacion = document.getElementById('grupo_revocacion');
+    const revocaSelect = document.getElementById('revoca_documento_id');
+    if (valorTipo === 'revocacion') {
+        grupoRevocacion.classList.remove('d-none');
+        revocaSelect.required = true;
+    } else {
+        grupoRevocacion.classList.add('d-none');
+        revocaSelect.required = false;
+        revocaSelect.value = '';
     }
 }
 

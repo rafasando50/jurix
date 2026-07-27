@@ -56,6 +56,16 @@ try {
     $error_message = "Error en el servidor al cargar los datos del documento.";
 }
 
+// Obtener lista de poderes/actas para el selector de revocación (excluyendo el actual)
+$documentos_candidatos = [];
+try {
+    $stmt_cand = $pdo->prepare("SELECT id, numero_instrumento, libro, tipo, concepto FROM documentos WHERE tipo IN ('poder', 'acta') AND id != :current_id ORDER BY numero_instrumento ASC");
+    $stmt_cand->execute(['current_id' => $id]);
+    $documentos_candidatos = $stmt_cand->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al obtener candidatos de revocación en edición: " . $e->getMessage());
+}
+
 // Procesar el formulario si es POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
     // Sanitizar y recibir inputs
@@ -69,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
     $subtipo = isset($_POST['subtipo']) ? trim($_POST['subtipo']) : 'ninguno';
     $concepto = isset($_POST['concepto']) ? trim($_POST['concepto']) : '';
     $personas_acreditadas = isset($_POST['personas_acreditadas']) ? trim($_POST['personas_acreditadas']) : '';
+    $revoca_documento_id = (isset($_POST['revoca_documento_id']) && $_POST['revoca_documento_id'] !== '') ? (int)$_POST['revoca_documento_id'] : null;
     
     // Vigencia
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
@@ -125,7 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     subtipo = :subtipo, 
                     concepto = :concepto, 
                     vigencia = :vigencia, 
-                    archivo_path = :archivo_path 
+                    archivo_path = :archivo_path,
+                    revoca_documento_id = :revoca_documento_id 
                     WHERE id = :id");
                 
                 $stmt->execute([
@@ -140,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     'concepto' => $concepto,
                     'vigencia' => $vigencia,
                     'archivo_path' => $archivo_path,
+                    'revoca_documento_id' => $revoca_documento_id,
                     'id' => $id
                 ]);
 
@@ -200,6 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                 $doc['personas_acreditadas'] = $personas_acreditadas;
                 $doc['vigencia'] = $vigencia;
                 $doc['archivo_path'] = $archivo_path;
+                $doc['revoca_documento_id'] = $revoca_documento_id;
 
                 // Redirigir al listado después de 1.5 segundos
                 echo "<script>
@@ -273,6 +287,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                                 <select class="form-control" id="subtipo" name="subtipo" required>
                                     <!-- Se llenará dinámicamente mediante javascript -->
                                 </select>
+                            </div>
+
+                            <div class="col-12 d-none" id="grupo_revocacion">
+                                <label for="revoca_documento_id" class="form-label fw-bold text-dark">Poder / Acta que Revoca *</label>
+                                <select class="form-control" id="revoca_documento_id" name="revoca_documento_id">
+                                    <option value="">-- Seleccione el documento a revocar --</option>
+                                    <?php foreach ($documentos_candidatos as $cand): ?>
+                                        <option value="<?php echo $cand['id']; ?>" <?php echo ($doc['revoca_documento_id'] == $cand['id']) ? 'selected' : ''; ?>>
+                                            [<?php echo ($cand['tipo'] === 'poder') ? 'Poder' : 'Acta'; ?>] Instrumento: <?php echo htmlspecialchars($cand['numero_instrumento']); ?>, Libro: <?php echo htmlspecialchars($cand['libro']); ?> - <?php echo htmlspecialchars(substr($cand['concepto'], 0, 80)); ?>...
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <small class="text-muted">Seleccione el documento que quedará revocado (inhabilitado) por esta revocación.</small>
                             </div>
                         </div>
 
@@ -437,6 +464,18 @@ function actualizarSubtipos() {
             el.selected = true;
         }
         subtipoSelect.appendChild(el);
+    }
+
+    // Mostrar/ocultar selector de revocación
+    const grupoRevocacion = document.getElementById('grupo_revocacion');
+    const revocaSelect = document.getElementById('revoca_documento_id');
+    if (valorTipo === 'revocacion') {
+        grupoRevocacion.classList.remove('d-none');
+        revocaSelect.required = true;
+    } else {
+        grupoRevocacion.classList.add('d-none');
+        revocaSelect.required = false;
+        revocaSelect.value = '';
     }
 }
 

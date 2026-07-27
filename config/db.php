@@ -38,6 +38,12 @@ try {
     } catch (PDOException $ex) {
         // Ignorar si ya existe
     }
+
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN revoca_documento_id INT DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
     
     // Asegurar Super Admin Sistemas
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
@@ -113,6 +119,12 @@ try {
         // Intentar agregar la columna personas_acreditadas por si la tabla ya existía
         try {
             $pdo->exec("ALTER TABLE documentos ADD COLUMN personas_acreditadas TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si la columna ya existe o si falla
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN revoca_documento_id INTEGER DEFAULT NULL");
         } catch (PDOException $e) {
             // Ignorar si la columna ya existe o si falla
         }

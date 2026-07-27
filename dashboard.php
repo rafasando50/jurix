@@ -37,8 +37,15 @@ try {
     $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas')");
     $total_poderes_especiales = (int)$stmt->fetchColumn();
 
-    // Obtener los últimos 5 documentos registrados
-    $stmt = $pdo->query("SELECT * FROM documentos ORDER BY created_at DESC LIMIT 5");
+    // Obtener los últimos 5 documentos registrados con LEFT JOIN para identificar revocaciones
+    $stmt = $pdo->query("SELECT d.*, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
+                         FROM documentos d 
+                         LEFT JOIN (
+                             SELECT id, numero_instrumento, libro, revoca_documento_id 
+                             FROM documentos 
+                             WHERE tipo = 'revocacion' AND revoca_documento_id IS NOT NULL
+                         ) r ON d.id = r.revoca_documento_id 
+                         ORDER BY d.created_at DESC LIMIT 5");
     $ultimos_documentos = $stmt->fetchAll();
 
     // Obtener personas acreditadas para los últimos documentos de manera eficiente
@@ -232,6 +239,11 @@ try {
                                                 <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
                                                     <?php echo htmlspecialchars($tipoLabel); ?>
                                                 </span>
+                                                <?php if (!empty($doc['revocacion_id'])): ?>
+                                                    <span class="badge bg-dark rounded-pill px-2 py-1" style="font-size: 0.75rem; background-color: #1e293b !important;" title="Revocado por Instrumento No. <?php echo htmlspecialchars($doc['revocacion_instrumento']); ?>">
+                                                        <i class="fa-solid fa-ban text-danger me-1"></i> Revocado
+                                                    </span>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <div class="text-dark fw-semibold" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">

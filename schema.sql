@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `documentos` (
     `concepto` TEXT NOT NULL,
     `vigencia` DATE DEFAULT NULL,
     `archivo_path` VARCHAR(255) DEFAULT NULL,
+    `revoca_documento_id` INT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

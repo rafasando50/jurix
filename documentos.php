@@ -19,22 +19,29 @@ $tipo = isset($_GET['tipo']) ? trim($_GET['tipo']) : '';
 $subtipo = isset($_GET['subtipo']) ? trim($_GET['subtipo']) : '';
 $vencimiento = isset($_GET['vencimiento']) ? trim($_GET['vencimiento']) : '';
 
-// Construir consulta SQL
-$sql = "SELECT * FROM documentos WHERE 1=1";
+// Construir consulta SQL con LEFT JOIN para identificar revocaciones
+$sql = "SELECT d.*, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
+        FROM documentos d 
+        LEFT JOIN (
+            SELECT id, numero_instrumento, libro, revoca_documento_id 
+            FROM documentos 
+            WHERE tipo = 'revocacion' AND revoca_documento_id IS NOT NULL
+        ) r ON d.id = r.revoca_documento_id 
+        WHERE 1=1";
 $params = [];
 
 if (!empty($tipo)) {
-    $sql .= " AND tipo = :tipo";
+    $sql .= " AND d.tipo = :tipo";
     $params['tipo'] = $tipo;
 }
 
 if (!empty($subtipo)) {
-    $sql .= " AND subtipo = :subtipo";
+    $sql .= " AND d.subtipo = :subtipo";
     $params['subtipo'] = $subtipo;
 }
 
 if (!empty($q)) {
-    $sql .= " AND (numero_instrumento LIKE :q OR libro LIKE :q OR notaria LIKE :q OR ciudad_notaria LIKE :q OR notario LIKE :q OR concepto LIKE :q OR id IN (
+    $sql .= " AND (d.numero_instrumento LIKE :q OR d.libro LIKE :q OR d.notaria LIKE :q OR d.ciudad_notaria LIKE :q OR d.notario LIKE :q OR d.concepto LIKE :q OR d.id IN (
         SELECT dp.documento_id 
         FROM documento_personas dp 
         JOIN personas p ON dp.persona_id = p.id 
@@ -45,16 +52,16 @@ if (!empty($q)) {
 
 $hoy = date('Y-m-d');
 if ($vencimiento === 'vigente') {
-    $sql .= " AND (vigencia IS NULL OR vigencia >= :hoy)";
+    $sql .= " AND (d.vigencia IS NULL OR d.vigencia >= :hoy)";
     $params['hoy'] = $hoy;
 } elseif ($vencimiento === 'expirado') {
-    $sql .= " AND (vigencia IS NOT NULL AND vigencia < :hoy)";
+    $sql .= " AND (d.vigencia IS NOT NULL AND d.vigencia < :hoy)";
     $params['hoy'] = $hoy;
 } elseif ($vencimiento === 'permanente') {
-    $sql .= " AND vigencia IS NULL";
+    $sql .= " AND d.vigencia IS NULL";
 }
 
-$sql .= " ORDER BY fecha_expedicion DESC, created_at DESC";
+$sql .= " ORDER BY d.fecha_expedicion DESC, d.created_at DESC";
 
 try {
     $stmt = $pdo->prepare($sql);
@@ -94,7 +101,11 @@ function getFilterUrl($new_params) {
 }
 
 // Helper para determinar el estado de vigencia
-function getVigenciaBadge($fecha_vigencia) {
+function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_instrumento = null) {
+    if ($revocacion_id !== null) {
+        return '<a href="documento_editar.php?id=' . $revocacion_id . '" class="badge bg-dark rounded-pill px-2 py-1 text-decoration-none" style="background-color: #1e293b !important;" title="Revocado por Instrumento ' . htmlspecialchars($revocacion_instrumento) . ' (Click para ver)"><i class="fa-solid fa-ban me-1 text-danger"></i> Revocado por No. ' . htmlspecialchars($revocacion_instrumento) . '</a>';
+    }
+    
     if (empty($fecha_vigencia)) {
         return '<span class="badge bg-secondary rounded-pill px-2 py-1"><i class="fa-solid fa-infinity me-1"></i> Permanente</span>';
     }
@@ -320,7 +331,7 @@ function getVigenciaBadge($fecha_vigencia) {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php echo getVigenciaBadge($doc['vigencia']); ?>
+                                        <?php echo getVigenciaBadge($doc['vigencia'], $doc['revocacion_id'], $doc['revocacion_instrumento']); ?>
                                     </td>
                                     <td>
                                         <?php if (!empty($doc['archivo_path'])): ?>
