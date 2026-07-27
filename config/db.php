@@ -52,6 +52,9 @@ try {
         $pdo = new PDO($dsn, null, null, $options);
         define('DB_TYPE', 'sqlite');
         
+        // Habilitar llaves foráneas en SQLite para soportar ON DELETE CASCADE
+        $pdo->exec("PRAGMA foreign_keys = ON;");
+        
         // Inicializar tabla de usuarios si no existe
         $pdo->exec("CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,11 +77,67 @@ try {
             tipo TEXT NOT NULL,
             subtipo TEXT NOT NULL DEFAULT 'ninguno',
             concepto TEXT NOT NULL,
+            personas_acreditadas TEXT DEFAULT NULL,
             vigencia TEXT DEFAULT NULL,
             archivo_path TEXT DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+        
+        // Intentar agregar la columna personas_acreditadas por si la tabla ya existía
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN personas_acreditadas TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si la columna ya existe o si falla
+        }
+
+        // Inicializar tablas para la normalización relacional
+        $pdo->exec("CREATE TABLE IF NOT EXISTS personas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS documento_personas (
+            documento_id INTEGER NOT NULL,
+            persona_id INTEGER NOT NULL,
+            PRIMARY KEY (documento_id, persona_id),
+            FOREIGN KEY (documento_id) REFERENCES documentos (id) ON DELETE CASCADE,
+            FOREIGN KEY (persona_id) REFERENCES personas (id) ON DELETE CASCADE
+        )");
+
+        // Migración automática de datos legacy de personas_acreditadas
+        try {
+            // 1. Obtener documentos que tengan datos en la columna legacy
+            $stmt = $pdo->query("SELECT id, personas_acreditadas FROM documentos WHERE personas_acreditadas IS NOT NULL AND personas_acreditadas != ''");
+            $legacy_docs = $stmt->fetchAll();
+            
+            if (!empty($legacy_docs)) {
+                $stmt_ins_persona = $pdo->prepare("INSERT OR IGNORE INTO personas (nombre) VALUES (:nombre)");
+                $stmt_sel_persona = $pdo->prepare("SELECT id FROM personas WHERE nombre = :nombre");
+                $stmt_ins_relation = $pdo->prepare("INSERT OR IGNORE INTO documento_personas (documento_id, persona_id) VALUES (:documento_id, :persona_id)");
+                
+                foreach ($legacy_docs as $ldoc) {
+                    $names = array_filter(array_map('trim', explode(',', $ldoc['personas_acreditadas'])));
+                    foreach ($names as $name) {
+                        if (empty($name)) continue;
+                        $stmt_ins_persona->execute(['nombre' => $name]);
+                        $stmt_sel_persona->execute(['nombre' => $name]);
+                        $pid = $stmt_sel_persona->fetchColumn();
+                        if ($pid) {
+                            $stmt_ins_relation->execute([
+                                'documento_id' => $ldoc['id'],
+                                'persona_id' => $pid
+                            ]);
+                        }
+                    }
+                }
+                
+                // Limpiar la columna legacy para que no se vuelva a migrar
+                $pdo->exec("UPDATE documentos SET personas_acreditadas = NULL");
+            }
+        } catch (PDOException $mig_err) {
+            // Ignorar si la columna no existía o falla
+        }
         
         // Verificar si existe el usuario administrador de prueba
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");

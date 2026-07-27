@@ -41,3 +41,18 @@ CREATE TABLE IF NOT EXISTS `documentos` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Crear tabla de personas
+CREATE TABLE IF NOT EXISTS `personas` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `nombre` VARCHAR(255) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Crear tabla de relaciones documento-personas
+CREATE TABLE IF NOT EXISTS `documento_personas` (
+    `documento_id` INT NOT NULL,
+    `persona_id` INT NOT NULL,
+    PRIMARY KEY (`documento_id`, `persona_id`),
+    FOREIGN KEY (`documento_id`) REFERENCES `documentos` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`persona_id`) REFERENCES `personas` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

@@ -40,6 +40,21 @@ try {
     // Obtener los últimos 5 documentos registrados
     $stmt = $pdo->query("SELECT * FROM documentos ORDER BY created_at DESC LIMIT 5");
     $ultimos_documentos = $stmt->fetchAll();
+
+    // Obtener personas acreditadas para los últimos documentos de manera eficiente
+    $acreditados_map = [];
+    if (!empty($ultimos_documentos)) {
+        $doc_ids = array_column($ultimos_documentos, 'id');
+        $placeholders = implode(',', array_fill(0, count($doc_ids), '?'));
+        $stmt_acred = $pdo->prepare("SELECT dp.documento_id, p.nombre 
+                                     FROM documento_personas dp 
+                                     JOIN personas p ON dp.persona_id = p.id 
+                                     WHERE dp.documento_id IN ($placeholders)");
+        $stmt_acred->execute($doc_ids);
+        while ($row_acred = $stmt_acred->fetch()) {
+            $acreditados_map[$row_acred['documento_id']][] = $row_acred['nombre'];
+        }
+    }
 } catch (PDOException $e) {
     // En caso de que falle
     error_log("Error al cargar estadísticas del dashboard: " . $e->getMessage());
@@ -235,9 +250,27 @@ try {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="text-muted" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">
+                                                <div class="text-dark fw-semibold" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">
                                                     <?php echo htmlspecialchars($doc['concepto']); ?>
                                                 </div>
+                                                <?php 
+                                                $personas_list = isset($acreditados_map[$doc['id']]) ? implode(', ', $acreditados_map[$doc['id']]) : '';
+                                                if (!empty($personas_list)): 
+                                                ?>
+                                                    <div class="mt-1" style="font-size: 0.75rem;">
+                                                        <strong class="text-dark"><i class="fa-solid fa-users me-1 text-primary"></i>Acreditados:</strong>
+                                                        <span class="text-muted" title="<?php echo htmlspecialchars($personas_list); ?>">
+                                                            <?php 
+                                                            $acred = htmlspecialchars($personas_list);
+                                                            if (strlen($acred) > 40) {
+                                                                echo substr($acred, 0, 37) . '...';
+                                                            } else {
+                                                                echo $acred;
+                                                            }
+                                                            ?>
+                                                        </span>
+                                                    </div>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <?php if (!empty($doc['archivo_path'])): ?>

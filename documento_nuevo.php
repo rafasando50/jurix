@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : '';
     $subtipo = isset($_POST['subtipo']) ? trim($_POST['subtipo']) : 'ninguno';
     $concepto = isset($_POST['concepto']) ? trim($_POST['concepto']) : '';
+    $personas_acreditadas = isset($_POST['personas_acreditadas']) ? trim($_POST['personas_acreditadas']) : '';
     
     // Vigencia
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
@@ -85,6 +86,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'vigencia' => $vigencia,
                     'archivo_path' => $archivo_path
                 ]);
+
+                $documento_id = $pdo->lastInsertId();
+
+                // Guardar personas acreditadas de forma relacional
+                if (!empty($personas_acreditadas)) {
+                    $names = array_filter(array_map('trim', explode(',', $personas_acreditadas)));
+                    
+                    $stmt_sel_persona = $pdo->prepare("SELECT id FROM personas WHERE nombre = :nombre");
+                    $stmt_add_persona = $pdo->prepare("INSERT INTO personas (nombre) VALUES (:nombre)");
+                    $stmt_ins_relation = $pdo->prepare("INSERT INTO documento_personas (documento_id, persona_id) VALUES (:documento_id, :persona_id)");
+                    
+                    foreach ($names as $name) {
+                        if (empty($name)) continue;
+                        
+                        $stmt_sel_persona->execute(['nombre' => $name]);
+                        $persona_id = $stmt_sel_persona->fetchColumn();
+                        
+                        if (!$persona_id) {
+                            try {
+                                $stmt_add_persona->execute(['nombre' => $name]);
+                                $persona_id = $pdo->lastInsertId();
+                            } catch (PDOException $ex) {
+                                $stmt_sel_persona->execute(['nombre' => $name]);
+                                $persona_id = $stmt_sel_persona->fetchColumn();
+                            }
+                        }
+                        
+                        if ($persona_id) {
+                            try {
+                                $stmt_ins_relation->execute([
+                                    'documento_id' => $documento_id,
+                                    'persona_id' => $persona_id
+                                ]);
+                            } catch (PDOException $ex_rel) {
+                                // Ignorar si ya existe la relación
+                            }
+                        }
+                    }
+                }
 
                 $success_message = "Documento registrado exitosamente.";
                 // Redirigir al listado después de 1.5 segundos
@@ -201,6 +241,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="mb-3">
                             <label for="concepto" class="form-label">Concepto / Descripción del Documento *</label>
                             <textarea class="form-control" id="concepto" name="concepto" rows="3" placeholder="Describe brevemente el alcance del acta o las facultades otorgadas..." required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="personas_acreditadas" class="form-label">Personas Acreditadas / Representantes / Titulares</label>
+                            <textarea class="form-control" id="personas_acreditadas" name="personas_acreditadas" rows="2" placeholder="Escriba los nombres de las personas acreditadas o autorizadas en este documento..."></textarea>
+                            <small class="text-muted d-block mt-1">Escriba los nombres completos de las personas autorizadas o titulares de este documento. Puede separar múltiples nombres con comas.</small>
                         </div>
 
                         <div class="row g-3 align-items-center mb-4">
