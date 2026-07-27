@@ -7,21 +7,23 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
     `nombre` VARCHAR(100) NOT NULL,
     `email` VARCHAR(100) NOT NULL UNIQUE,
     `password` VARCHAR(255) NOT NULL,
+    `rol` VARCHAR(20) NOT NULL DEFAULT 'usuario',
     `activo` TINYINT(1) DEFAULT 1,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insertar usuario administrador de prueba
--- Credenciales:
--- Correo: admin@sistema.com
--- Contraseña: admin123
-INSERT INTO `usuarios` (`nombre`, `email`, `password`, `activo`) 
+-- Insertar usuarios iniciales
+-- 1. Super Admin (Sistemas)
+-- Contraseña: pumas123
+INSERT INTO `usuarios` (`nombre`, `email`, `password`, `rol`, `activo`) 
 VALUES (
-    'Administrador de Prueba', 
-    'admin@sistema.com', 
-    '$2y$10$CYn.YgIb0dup7WTL.YO1WuE/X8N9Kp9te5z2ZSTLw.1xpefMjWope', 
+    'Sistemas', 
+    'sistemas@einsursupply.com', 
+    '$2y$10$.SO5HpeJ2kKxneHYsZl/I.F4zV46kq52.LxnFD.5Kgvf74vdw5VG.', 
+    'superadmin', 
     1
-) ON DUPLICATE KEY UPDATE `nombre` = VALUES(`nombre`);
+) ON DUPLICATE KEY UPDATE `rol` = 'superadmin', `activo` = 1;
+
 
 -- Crear tabla de documentos
 CREATE TABLE IF NOT EXISTS `documentos` (

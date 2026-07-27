@@ -32,6 +32,25 @@ try {
     $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     define('DB_TYPE', 'mysql');
     
+    // Migración automática del rol y cuentas iniciales para MySQL
+    try {
+        $pdo->exec("ALTER TABLE usuarios ADD COLUMN rol VARCHAR(20) NOT NULL DEFAULT 'usuario'");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+    
+    // Asegurar Super Admin Sistemas
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
+    $stmt->execute(['email' => 'sistemas@einsursupply.com']);
+    if ($stmt->fetchColumn() == 0) {
+        $hashed_pass = password_hash('pumas123', PASSWORD_DEFAULT);
+        $stmt_ins = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, activo, rol) VALUES ('Sistemas', 'sistemas@einsursupply.com', :password, 1, 'superadmin')");
+        $stmt_ins->execute(['password' => $hashed_pass]);
+    } else {
+        $pdo->exec("UPDATE usuarios SET rol = 'superadmin', activo = 1 WHERE email = 'sistemas@einsursupply.com'");
+    }
+    
+    
 } catch (PDOException $e) {
     // Si estamos en producción, obligatoriamente necesitamos la base de datos MySQL activa
     if (IS_PRODUCTION) {
@@ -61,9 +80,16 @@ try {
             nombre TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
+            rol TEXT NOT NULL DEFAULT 'usuario',
             activo INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+        
+        try {
+            $pdo->exec("ALTER TABLE usuarios ADD COLUMN rol TEXT DEFAULT 'usuario'");
+        } catch (PDOException $ex) {
+            // Ignorar si ya existe
+        }
         
         // Inicializar tabla de documentos si no existe
         $pdo->exec("CREATE TABLE IF NOT EXISTS documentos (
@@ -139,22 +165,25 @@ try {
             // Ignorar si la columna no existía o falla
         }
         
-        // Verificar si existe el usuario administrador de prueba
+        // Verificar si existe el superadmin de Sistemas
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
-        $stmt->execute(['email' => 'admin@sistema.com']);
-        $count = $stmt->fetchColumn();
+        $stmt->execute(['email' => 'sistemas@einsursupply.com']);
+        $count_sis = $stmt->fetchColumn();
         
-        if ($count == 0) {
-            // Contraseña: admin123
-            $hashed_pass = password_hash('admin123', PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, activo) VALUES (:nombre, :email, :password, :activo)");
+        if ($count_sis == 0) {
+            $hashed_pass = password_hash('pumas123', PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO usuarios (nombre, email, password, activo, rol) VALUES (:nombre, :email, :password, :activo, :rol)");
             $stmt->execute([
-                'nombre' => 'Administrador de Prueba (SQLite)',
-                'email' => 'admin@sistema.com',
+                'nombre' => 'Sistemas',
+                'email' => 'sistemas@einsursupply.com',
                 'password' => $hashed_pass,
-                'activo' => 1
+                'activo' => 1,
+                'rol' => 'superadmin'
             ]);
+        } else {
+            $pdo->exec("UPDATE usuarios SET rol = 'superadmin', activo = 1 WHERE email = 'sistemas@einsursupply.com'");
         }
+
         
     } catch (PDOException $sqlite_error) {
         // Si SQLite también falla o no está disponible, usamos un Mock PDO que simule las consultas básicas

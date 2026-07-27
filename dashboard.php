@@ -191,9 +191,11 @@ try {
                 <div class="p-4 rounded-4" style="background: #ffffff; border: 1px solid #e2e8f0; min-height: 350px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <h4 class="fw-bold text-dark mb-0">Últimos Documentos Registrados</h4>
+                        <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                         <a href="documento_nuevo.php" class="btn btn-primary-custom btn-sm py-2 px-3 rounded-3 d-flex align-items-center gap-2">
                             <i class="fa-solid fa-plus"></i> Capturar Documento
                         </a>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="table-responsive">
@@ -204,7 +206,9 @@ try {
                                     <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Tipo / Subtipo</th>
                                     <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Concepto</th>
                                     <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">PDF</th>
+                                    <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                                     <th scope="col" class="text-muted fw-semibold py-3 text-end" style="font-size: 0.85rem;">Acciones</th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -281,6 +285,7 @@ try {
                                                     <span class="text-muted" style="font-size: 0.8rem;">Ninguno</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                                             <td class="text-end">
                                                 <div class="d-flex justify-content-end gap-2">
                                                     <a href="documento_editar.php?id=<?php echo $doc['id']; ?>" class="btn btn-outline-warning btn-sm rounded-3 py-1 px-2" title="Editar">
@@ -291,6 +296,7 @@ try {
                                                     </button>
                                                 </div>
                                             </td>
+                                            <?php endif; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

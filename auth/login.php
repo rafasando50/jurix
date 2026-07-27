@@ -36,7 +36,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 try {
     // Consulta preparada para buscar al usuario por su correo
     // Estrictamente parametrizado para evitar inyecciones SQL
-    $stmt = $pdo->prepare("SELECT id, nombre, email, password, activo FROM usuarios WHERE email = :email LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, nombre, email, password, activo, rol FROM usuarios WHERE email = :email LIMIT 1");
     $stmt->execute(['email' => $email]);
     $user = $stmt->fetch();
 
@@ -57,6 +57,7 @@ try {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_nombre'] = $user['nombre'];
             $_SESSION['user_email'] = $user['email'];
+            $_SESSION['user_rol'] = $user['rol'];
 
             // Redirigir al panel principal (dashboard.php)
             header("Location: ../dashboard.php");

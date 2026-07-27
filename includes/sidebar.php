@@ -50,15 +50,23 @@ $current_tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
                 <span>Revocaciones</span>
             </a>
         </li>
+        <li class="<?php echo ($current_page === 'acreditados.php') ? 'active' : ''; ?>">
+            <a href="acreditados.php">
+                <i class="fa-solid fa-users"></i>
+                <span>Acreditados</span>
+            </a>
+        </li>
+        <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
         <li class="mt-4">
             <span class="text-uppercase text-muted px-3 fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Configuración</span>
         </li>
-        <li>
-            <a href="#">
+        <li class="<?php echo ($current_page === 'usuarios.php') ? 'active' : ''; ?>">
+            <a href="usuarios.php">
                 <i class="fa-solid fa-users-gear"></i>
                 <span>Usuarios</span>
             </a>
         </li>
+        <?php endif; ?>
     </ul>
 
     <!-- Info del usuario y Logout en la parte inferior del Sidebar -->

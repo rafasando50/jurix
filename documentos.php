@@ -17,6 +17,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 $tipo = isset($_GET['tipo']) ? trim($_GET['tipo']) : '';
 $subtipo = isset($_GET['subtipo']) ? trim($_GET['subtipo']) : '';
+$vencimiento = isset($_GET['vencimiento']) ? trim($_GET['vencimiento']) : '';
 
 // Construir consulta SQL
 $sql = "SELECT * FROM documentos WHERE 1=1";
@@ -40,6 +41,17 @@ if (!empty($q)) {
         WHERE p.nombre LIKE :q
     ))";
     $params['q'] = '%' . $q . '%';
+}
+
+$hoy = date('Y-m-d');
+if ($vencimiento === 'vigente') {
+    $sql .= " AND (vigencia IS NULL OR vigencia >= :hoy)";
+    $params['hoy'] = $hoy;
+} elseif ($vencimiento === 'expirado') {
+    $sql .= " AND (vigencia IS NOT NULL AND vigencia < :hoy)";
+    $params['hoy'] = $hoy;
+} elseif ($vencimiento === 'permanente') {
+    $sql .= " AND vigencia IS NULL";
 }
 
 $sql .= " ORDER BY fecha_expedicion DESC, created_at DESC";
@@ -68,6 +80,19 @@ try {
     $documentos = [];
 }
 
+// Helper para construir enlaces de filtro preservando los parámetros existentes
+function getFilterUrl($new_params) {
+    $current_params = $_GET;
+    foreach ($new_params as $key => $val) {
+        if ($val === '') {
+            unset($current_params[$key]);
+        } else {
+            $current_params[$key] = $val;
+        }
+    }
+    return 'documentos.php' . (!empty($current_params) ? '?' . http_build_query($current_params) : '');
+}
+
 // Helper para determinar el estado de vigencia
 function getVigenciaBadge($fecha_vigencia) {
     if (empty($fecha_vigencia)) {
@@ -91,9 +116,11 @@ function getVigenciaBadge($fecha_vigencia) {
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Documentos</span>
             <div class="ms-auto d-flex align-items-center gap-3">
+                <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                 <a href="documento_nuevo.php" class="btn btn-primary-custom py-2 px-3 rounded-3 d-flex align-items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Nuevo Documento
                 </a>
+                <?php endif; ?>
             </div>
         </div>
     </nav>
@@ -112,6 +139,9 @@ function getVigenciaBadge($fecha_vigencia) {
                 <?php if (!empty($subtipo)): ?>
                     <input type="hidden" name="subtipo" value="<?php echo htmlspecialchars($subtipo); ?>">
                 <?php endif; ?>
+                <?php if (!empty($vencimiento)): ?>
+                    <input type="hidden" name="vencimiento" value="<?php echo htmlspecialchars($vencimiento); ?>">
+                <?php endif; ?>
                 <div class="col-md-9 col-lg-10">
                     <div class="input-group">
                         <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-radius: 12px 0 0 12px; border-color: #cbd5e1;">
@@ -126,48 +156,72 @@ function getVigenciaBadge($fecha_vigencia) {
             </form>
 
             <!-- Filtros Rápidos (Pills) -->
-            <div>
-                <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Categoría:</span>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="documentos.php<?php echo !empty($q) ? '?q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo (empty($tipo) && empty($subtipo)) ? 'btn-primary' : 'btn-light text-dark border'; ?>">
-                        Todos
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=constitutiva<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'constitutiva') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
-                        Acta Constitutiva
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=asamblea_ordinaria<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_ordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
-                        Asamblea Ordinaria
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=asamblea_extraordinaria<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_extraordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
-                        Asamblea Extraordinaria
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=poder_amplio<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_amplio') ? 'btn-success' : 'btn-light text-dark border'; ?>">
-                        Poder Amplio
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=poder_especifico<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_especifico') ? 'btn-success' : 'btn-light text-dark border'; ?>">
-                        Poder Específico
-                    </a>
-                    
-                    <a href="documentos.php?subtipo=poder_actas_administrativas<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_actas_administrativas') ? 'btn-success' : 'btn-light text-dark border'; ?>">
-                        Poder Actas Adm.
-                    </a>
-                    
-                    <a href="documentos.php?tipo=revocacion<?php echo !empty($q) ? '&q='.urlencode($q) : ''; ?>" 
-                       class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($tipo === 'revocacion') ? 'btn-danger' : 'btn-light text-dark border'; ?>">
-                        Revocación de Poderes
-                    </a>
+            <div class="d-flex flex-column gap-3">
+                <div>
+                    <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Categoría:</span>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="<?php echo getFilterUrl(['tipo' => '', 'subtipo' => '']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo (empty($tipo) && empty($subtipo)) ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                            Todos
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'acta', 'subtipo' => 'constitutiva']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'constitutiva') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                            Acta Constitutiva
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'acta', 'subtipo' => 'asamblea_ordinaria']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_ordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                            Asamblea Ordinaria
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'acta', 'subtipo' => 'asamblea_extraordinaria']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'asamblea_extraordinaria') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                            Asamblea Extraordinaria
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'poder', 'subtipo' => 'poder_amplio']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_amplio') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                            Poder Amplio
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'poder', 'subtipo' => 'poder_especifico']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_especifico') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                            Poder Específico
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'poder', 'subtipo' => 'poder_actas_administrativas']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($subtipo === 'poder_actas_administrativas') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                            Poder Actas Adm.
+                        </a>
+                        
+                        <a href="<?php echo getFilterUrl(['tipo' => 'revocacion', 'subtipo' => '']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($tipo === 'revocacion') ? 'btn-danger' : 'btn-light text-dark border'; ?>">
+                            Revocación de Poderes
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Vigencia:</span>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="<?php echo getFilterUrl(['vencimiento' => '']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo (empty($vencimiento)) ? 'btn-dark' : 'btn-light text-dark border'; ?>">
+                            Cualquier estado
+                        </a>
+                        <a href="<?php echo getFilterUrl(['vencimiento' => 'vigente']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($vencimiento === 'vigente') ? 'btn-success' : 'btn-light text-dark border'; ?>">
+                            <i class="fa-solid fa-calendar-check me-1"></i> Vigentes
+                        </a>
+                        <a href="<?php echo getFilterUrl(['vencimiento' => 'expirado']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($vencimiento === 'expirado') ? 'btn-danger' : 'btn-light text-dark border'; ?>">
+                            <i class="fa-solid fa-calendar-xmark me-1"></i> Expirados
+                        </a>
+                        <a href="<?php echo getFilterUrl(['vencimiento' => 'permanente']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($vencimiento === 'permanente') ? 'btn-secondary' : 'btn-light text-dark border'; ?>">
+                            <i class="fa-solid fa-infinity me-1"></i> Permanentes
+                        </a>
+                    </div>
                 </div>
             </div>
             
@@ -187,7 +241,9 @@ function getVigenciaBadge($fecha_vigencia) {
                             <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Concepto</th>
                             <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">Vigencia</th>
                             <th scope="col" class="text-muted fw-semibold py-3" style="font-size: 0.85rem;">PDF</th>
+                            <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                             <th scope="col" class="text-muted fw-semibold py-3 text-end" style="font-size: 0.85rem;">Acciones</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
@@ -275,6 +331,7 @@ function getVigenciaBadge($fecha_vigencia) {
                                             <span class="text-muted" style="font-size: 0.8rem;">Ninguno</span>
                                         <?php endif; ?>
                                     </td>
+                                    <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                                     <td class="text-end">
                                         <div class="d-flex justify-content-end gap-2">
                                             <a href="documento_editar.php?id=<?php echo $doc['id']; ?>" class="btn btn-outline-warning btn-sm rounded-3 py-1 px-2" title="Editar">
@@ -285,6 +342,7 @@ function getVigenciaBadge($fecha_vigencia) {
                                             </button>
                                         </div>
                                     </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

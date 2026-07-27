@@ -10,6 +10,12 @@ require_once __DIR__ . '/config/db.php';
 // Incluir cabecera
 require_once __DIR__ . '/includes/header.php';
 
+// Validar que el rol no sea 'usuario'
+if ($_SESSION['user_rol'] === 'usuario') {
+    header("Location: dashboard.php");
+    exit;
+}
+
 // Incluir barra lateral
 require_once __DIR__ . '/includes/sidebar.php';
 

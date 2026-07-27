@@ -9,7 +9,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Proteger la página: verificar si la sesión del usuario está activa
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_rol'])) {
+    session_unset();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
     header("Location: index.php");
     exit;
 }

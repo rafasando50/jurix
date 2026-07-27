@@ -6,9 +6,9 @@
 
 session_start();
 
-// Proteger la página: verificar si la sesión del usuario está activa
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+// Proteger la página: verificar si la sesión del usuario está activa y tiene permisos
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_rol']) || $_SESSION['user_rol'] === 'usuario') {
+    header("Location: dashboard.php");
     exit;
 }
 
