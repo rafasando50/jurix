@@ -62,6 +62,27 @@ try {
             $acreditados_map[$row_acred['documento_id']][] = $row_acred['nombre'];
         }
     }
+
+    // Obtener documentos próximos a vencer (vigencia en los siguientes 30 días y que no estén revocados)
+    $vencimientos_proximos = [];
+    $hoy = date('Y-m-d');
+    $limite_vencimiento = date('Y-m-d', strtotime('+30 days'));
+    $stmt_vence = $pdo->prepare("
+        SELECT d.* 
+        FROM documentos d
+        LEFT JOIN documentos r ON d.id = r.revoca_documento_id AND r.tipo = 'revocacion'
+        WHERE d.vigencia IS NOT NULL 
+          AND d.vigencia >= :hoy 
+          AND d.vigencia <= :limite 
+          AND r.id IS NULL
+        ORDER BY d.vigencia ASC
+        LIMIT 5
+    ");
+    $stmt_vence->execute([
+        'hoy' => $hoy,
+        'limite' => $limite_vencimiento
+    ]);
+    $vencimientos_proximos = $stmt_vence->fetchAll();
 } catch (PDOException $e) {
     // En caso de que falle
     error_log("Error al cargar estadísticas del dashboard: " . $e->getMessage());
@@ -175,7 +196,7 @@ try {
         <div class="row g-4">
             <!-- Módulo de Documentos - Contexto del Negocio -->
             <div class="col-xl-8">
-                <div class="p-4 rounded-4" style="background: #ffffff; border: 1px solid #e2e8f0; min-height: 350px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
+                <div class="p-4 rounded-4 h-100 d-flex flex-column" style="background: #ffffff; border: 1px solid #e2e8f0; min-height: 350px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     <div class="d-flex align-items-center justify-content-between mb-4">
                         <h4 class="fw-bold text-dark mb-0">Últimos Documentos Registrados</h4>
                         <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
@@ -185,7 +206,7 @@ try {
                         <?php endif; ?>
                     </div>
                     
-                    <div class="table-responsive">
+                    <div class="table-responsive flex-grow-1">
                         <table class="table table-hover align-middle mb-0" style="--bs-table-bg: transparent; --bs-table-border-color: #e2e8f0;">
                             <thead>
                                 <tr>
@@ -298,38 +319,72 @@ try {
                 </div>
             </div>
 
-            <!-- Accesos directos y ayuda -->
+            <!-- Próximos Vencimientos -->
             <div class="col-xl-4">
-                <div class="p-4 rounded-4 mb-4" style="background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
-                    <h5 class="fw-bold text-dark mb-3">Información del Negocio</h5>
-                    <div class="d-flex flex-column gap-3">
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3 mt-1">
-                                <i class="fa-solid fa-landmark"></i>
+                <div class="p-4 rounded-4 h-100 d-flex flex-column" style="background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-calendar-days text-danger me-2"></i>Vencimientos Próximos</h5>
+                    <div class="d-flex flex-column gap-3 flex-grow-1 <?php echo empty($vencimientos_proximos) ? 'justify-content-center' : ''; ?>">
+                        <?php if (empty($vencimientos_proximos)): ?>
+                            <div class="text-center py-4">
+                                <div class="bg-success bg-opacity-10 text-success rounded-circle d-inline-flex p-3 mb-2">
+                                    <i class="fa-solid fa-circle-check fs-4"></i>
+                                </div>
+                                <h6 class="fw-semibold text-dark mb-1">Todo al día</h6>
+                                <p class="text-muted mb-0" style="font-size: 0.8rem;">No hay documentos próximos a vencer en los siguientes 30 días.</p>
                             </div>
-                            <div>
-                                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">Origen Legal</h6>
-                                <p class="text-muted mb-0" style="font-size: 0.8rem;">Los documentos capturados corresponden a Actas Constitutivas o Asambleas Extraordinarias/Ordinarias.</p>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="bg-success bg-opacity-10 text-success p-2 rounded-3 mt-1">
-                                <i class="fa-solid fa-scale-balanced"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">Alcance de Poderes</h6>
-                                <p class="text-muted mb-0" style="font-size: 0.8rem;">Clasificación obligatoria en Poder Amplio, Poder Específico o Actas Administrativas.</p>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="bg-warning bg-opacity-10 text-warning p-2 rounded-3 mt-1">
-                                <i class="fa-solid fa-list-check"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">Facultades Clave</h6>
-                                <p class="text-muted mb-0" style="font-size: 0.8rem;">Facultad de Actos de Administración, Pleitos y Cobranzas, Actos de Dominio, Títulos de Crédito, etc.</p>
-                            </div>
-                        </div>
+                        <?php else: ?>
+                            <?php foreach ($vencimientos_proximos as $doc): ?>
+                                <?php
+                                $dias_restantes = (int)round((strtotime($doc['vigencia']) - strtotime($hoy)) / 86400);
+                                $badge_color = 'bg-primary';
+                                $icon_color = 'text-primary';
+                                $bg_icon = 'bg-primary bg-opacity-10';
+                                
+                                if ($dias_restantes <= 7) {
+                                    $badge_color = 'bg-danger';
+                                    $icon_color = 'text-danger';
+                                    $bg_icon = 'bg-danger bg-opacity-10';
+                                } elseif ($dias_restantes <= 15) {
+                                    $badge_color = 'bg-warning text-dark';
+                                    $icon_color = 'text-warning';
+                                    $bg_icon = 'bg-warning bg-opacity-10';
+                                }
+                                
+                                $tipo_label = '';
+                                $tipo_icon = 'fa-file-lines';
+                                if ($doc['tipo'] === 'acta') {
+                                    $tipo_label = 'Acta';
+                                    $tipo_icon = 'fa-landmark';
+                                } elseif ($doc['tipo'] === 'poder') {
+                                    $tipo_label = 'Poder';
+                                    $tipo_icon = 'fa-scale-balanced';
+                                }
+                                ?>
+                                <div class="p-3 rounded-3 d-flex align-items-center justify-content-between border" style="background-color: #f8fafc; border-color: #e2e8f0 !important;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="<?php echo $bg_icon; ?> <?php echo $icon_color; ?> p-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <i class="fa-solid <?php echo $tipo_icon; ?> fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0" style="font-size: 0.85rem;">Inst. No. <?php echo htmlspecialchars($doc['numero_instrumento']); ?></h6>
+                                            <small class="text-muted d-block" style="font-size: 0.75rem;"><?php echo htmlspecialchars($tipo_label); ?> - Libro <?php echo htmlspecialchars($doc['libro']); ?></small>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge <?php echo $badge_color; ?> rounded-pill mb-1 d-block" style="font-size: 0.7rem;">
+                                            <?php 
+                                            if ($dias_restantes === 0) echo 'Vence hoy';
+                                            elseif ($dias_restantes === 1) echo 'Vence mañana';
+                                            else echo 'Vence en ' . $dias_restantes . ' días';
+                                            ?>
+                                        </span>
+                                        <a href="documento_editar.php?id=<?php echo $doc['id']; ?>" class="text-decoration-none fw-semibold" style="font-size: 0.75rem; color: var(--primary-color);">
+                                            Ver detalles <i class="fa-solid fa-chevron-right ms-1" style="font-size: 0.65rem;"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

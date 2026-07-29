@@ -377,14 +377,30 @@ body.dashboard-body {
     .content-area {
         padding: 1rem;
     }
+}
+
+/* Responsividad para Tablets y Móviles (991.98px o menor) */
+@media (max-width: 991.98px) {
     .navbar-top {
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-        gap: 10px;
+        margin-bottom: 1.5rem;
+    }
+    .navbar-top .container-fluid {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
     .navbar-top .ms-auto {
         margin-left: 0 !important;
         width: 100%;
-        justify-content: flex-end;
+        display: flex;
+        justify-content: flex-start;
+    }
+}
+
+/* Responsividad para Móviles Pequeños (576px o menor) */
+@media (max-width: 575.98px) {
+    .navbar-top .ms-auto .btn {
+        width: 100%;
+        justify-content: center;
     }
 }
