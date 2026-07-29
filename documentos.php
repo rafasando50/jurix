@@ -166,8 +166,28 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                 </div>
             </form>
 
+            <!-- Botón para mostrar/ocultar filtros en móviles y tablets -->
+            <div class="d-lg-none mb-3">
+                <button class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2 py-2.5 rounded-3 position-relative" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiltros" aria-expanded="<?php echo (!empty($tipo) || !empty($subtipo) || !empty($vencimiento)) ? 'true' : 'false'; ?>" aria-controls="collapseFiltros">
+                    <i class="fa-solid fa-filter"></i>
+                    <span>Filtrar por Categoría / Vigencia</span>
+                    <?php if (!empty($tipo) || !empty($subtipo) || !empty($vencimiento)): ?>
+                        <span class="badge bg-danger rounded-pill ms-1">
+                            <?php 
+                            $count = 0;
+                            if (!empty($tipo)) $count++;
+                            if (!empty($subtipo)) $count++;
+                            if (!empty($vencimiento)) $count++;
+                            echo $count;
+                            ?>
+                        </span>
+                    <?php endif; ?>
+                </button>
+            </div>
+
             <!-- Filtros Rápidos (Pills) -->
-            <div class="d-flex flex-column gap-3">
+            <div class="collapse d-lg-block <?php echo (!empty($tipo) || !empty($subtipo) || !empty($vencimiento)) ? 'show' : ''; ?>" id="collapseFiltros">
+                <div class="d-flex flex-column gap-3 pt-2 pt-lg-0">
                 <div>
                     <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Categoría:</span>
                     <div class="d-flex flex-wrap gap-2">
@@ -235,6 +255,7 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                     </div>
                 </div>
             </div>
+        </div>
             
         </div>
 

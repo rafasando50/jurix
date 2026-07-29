@@ -177,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Contenido del Formulario -->
     <div class="container-fluid p-0">
         <div class="row">
-            <div class="col-lg-10 col-xl-8">
+            <div class="col-12">
                 <div class="p-4 p-md-5 rounded-4 bg-white" style="border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     
                     <!-- Alertas -->
