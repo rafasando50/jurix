@@ -66,6 +66,15 @@ try {
     error_log("Error al obtener candidatos de revocación en edición: " . $e->getMessage());
 }
 
+// Obtener lista de empresas
+$empresas = [];
+try {
+    $stmt_emp = $pdo->query("SELECT id, nombre FROM empresas ORDER BY nombre ASC");
+    $empresas = $stmt_emp->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al obtener lista de empresas en edición: " . $e->getMessage());
+}
+
 // Procesar el formulario si es POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
     // Sanitizar y recibir inputs
@@ -80,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
     $concepto = isset($_POST['concepto']) ? trim($_POST['concepto']) : '';
     $personas_acreditadas = isset($_POST['personas_acreditadas']) ? trim($_POST['personas_acreditadas']) : '';
     $revoca_documento_id = (isset($_POST['revoca_documento_id']) && $_POST['revoca_documento_id'] !== '') ? (int)$_POST['revoca_documento_id'] : null;
+    $empresa_id = (isset($_POST['empresa_id']) && $_POST['empresa_id'] !== '') ? (int)$_POST['empresa_id'] : null;
     
     // Vigencia
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
@@ -137,7 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     concepto = :concepto, 
                     vigencia = :vigencia, 
                     archivo_path = :archivo_path,
-                    revoca_documento_id = :revoca_documento_id 
+                    revoca_documento_id = :revoca_documento_id,
+                    empresa_id = :empresa_id
                     WHERE id = :id");
                 
                 $stmt->execute([
@@ -153,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     'vigencia' => $vigencia,
                     'archivo_path' => $archivo_path,
                     'revoca_documento_id' => $revoca_documento_id,
+                    'empresa_id' => $empresa_id,
                     'id' => $id
                 ]);
 
@@ -273,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                         <h5 class="fw-bold text-dark border-bottom pb-2 mb-4"><i class="fa-solid fa-tags text-primary me-2"></i>Clasificación del Documento</h5>
                         
                         <div class="row g-3 mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label for="tipo" class="form-label">Tipo de Documento *</label>
                                 <select class="form-control" id="tipo" name="tipo" required onchange="actualizarSubtipos()">
                                     <option value="acta" <?php echo ($doc['tipo'] === 'acta') ? 'selected' : ''; ?>>Acta / Asamblea</option>
@@ -282,10 +294,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                                 </select>
                             </div>
                             
-                            <div class="col-md-6" id="subtipo-container">
+                            <div class="col-md-4" id="subtipo-container">
                                 <label for="subtipo" class="form-label">Subtipo de Documento *</label>
                                 <select class="form-control" id="subtipo" name="subtipo" required>
                                     <!-- Se llenará dinámicamente mediante javascript -->
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="empresa_id" class="form-label">Empresa / Entidad *</label>
+                                <select class="form-control" id="empresa_id" name="empresa_id" required>
+                                    <?php foreach ($empresas as $emp): ?>
+                                        <option value="<?php echo $emp['id']; ?>" <?php echo ($doc['empresa_id'] == $emp['id']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($emp['nombre']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
 

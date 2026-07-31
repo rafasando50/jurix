@@ -18,10 +18,21 @@ $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 $tipo = isset($_GET['tipo']) ? trim($_GET['tipo']) : '';
 $subtipo = isset($_GET['subtipo']) ? trim($_GET['subtipo']) : '';
 $vencimiento = isset($_GET['vencimiento']) ? trim($_GET['vencimiento']) : '';
+$empresa_id = isset($_GET['empresa_id']) ? trim($_GET['empresa_id']) : '';
 
-// Construir consulta SQL con LEFT JOIN para identificar revocaciones
-$sql = "SELECT d.*, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
+// Obtener lista de empresas para el filtro
+$empresas = [];
+try {
+    $stmt_emp = $pdo->query("SELECT id, nombre FROM empresas ORDER BY nombre ASC");
+    $empresas = $stmt_emp->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al obtener lista de empresas para filtro: " . $e->getMessage());
+}
+
+// Construir consulta SQL con LEFT JOIN para identificar revocaciones y traer el nombre de la empresa
+$sql = "SELECT d.*, e.nombre AS empresa_nombre, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
         FROM documentos d 
+        LEFT JOIN empresas e ON d.empresa_id = e.id
         LEFT JOIN (
             SELECT id, numero_instrumento, libro, revoca_documento_id 
             FROM documentos 
@@ -29,6 +40,11 @@ $sql = "SELECT d.*, r.id AS revocacion_id, r.numero_instrumento AS revocacion_in
         ) r ON d.id = r.revoca_documento_id 
         WHERE 1=1";
 $params = [];
+
+if ($empresa_id !== '') {
+    $sql .= " AND d.empresa_id = :empresa_id";
+    $params['empresa_id'] = (int)$empresa_id;
+}
 
 if (!empty($tipo)) {
     $sql .= " AND d.tipo = :tipo";
@@ -153,6 +169,9 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                 <?php if (!empty($vencimiento)): ?>
                     <input type="hidden" name="vencimiento" value="<?php echo htmlspecialchars($vencimiento); ?>">
                 <?php endif; ?>
+                <?php if ($empresa_id !== ''): ?>
+                    <input type="hidden" name="empresa_id" value="<?php echo htmlspecialchars($empresa_id); ?>">
+                <?php endif; ?>
                 <div class="col-md-9 col-lg-10">
                     <div class="input-group">
                         <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-radius: 12px 0 0 12px; border-color: #cbd5e1;">
@@ -254,6 +273,22 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                         </a>
                     </div>
                 </div>
+
+                <div>
+                    <span class="text-muted fw-bold d-block mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; text-uppercase: true;">Filtrar por Empresa:</span>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="<?php echo getFilterUrl(['empresa_id' => '']); ?>" 
+                           class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($empresa_id === '') ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                            Todas
+                        </a>
+                        <?php foreach ($empresas as $emp): ?>
+                            <a href="<?php echo getFilterUrl(['empresa_id' => $emp['id']]); ?>" 
+                               class="btn btn-sm rounded-pill px-3 py-2 <?php echo ($empresa_id == $emp['id']) ? 'btn-primary' : 'btn-light text-dark border'; ?>">
+                                <?php echo htmlspecialchars($emp['nombre']); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
         </div>
             
@@ -316,9 +351,14 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                                             $badgeClass = 'bg-danger';
                                         }
                                         ?>
-                                        <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
-                                            <?php echo htmlspecialchars($tipoLabel); ?>
-                                        </span>
+                                        <div class="d-flex flex-column gap-1 align-items-start">
+                                            <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                                <?php echo htmlspecialchars($tipoLabel); ?>
+                                            </span>
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;" title="Empresa / Entidad">
+                                                <i class="fa-solid fa-building me-1" style="font-size: 0.65rem;"></i><?php echo htmlspecialchars($doc['empresa_nombre'] ?? 'N/A'); ?>
+                                            </span>
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="text-dark"><?php echo date('d/m/Y', strtotime($doc['fecha_expedicion'])); ?></div>

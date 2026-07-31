@@ -13,6 +13,18 @@ require_once __DIR__ . '/includes/header.php';
 // Incluir barra lateral de navegación
 require_once __DIR__ . '/includes/sidebar.php';
 
+// Obtener parámetro de empresa
+$empresa_id = isset($_GET['empresa_id']) ? trim($_GET['empresa_id']) : '';
+
+// Obtener lista de empresas para el selector
+$empresas = [];
+try {
+    $stmt_emp = $pdo->query("SELECT id, nombre FROM empresas ORDER BY nombre ASC");
+    $empresas = $stmt_emp->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error al obtener lista de empresas para dashboard: " . $e->getMessage());
+}
+
 // Consultas para estadísticas
 $total_docs = 0;
 $total_actas = 0;
@@ -22,30 +34,65 @@ $ultimos_documentos = [];
 
 try {
     // Total Documentos
-    $stmt = $pdo->query("SELECT COUNT(*) FROM documentos");
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos");
+    }
     $total_docs = (int)$stmt->fetchColumn();
 
     // Total Actas/Asambleas
-    $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta'");
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta'");
+    }
     $total_actas = (int)$stmt->fetchColumn();
 
     // Total Poderes Amplios
-    $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_amplio'");
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_amplio' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_amplio'");
+    }
     $total_poderes_amplios = (int)$stmt->fetchColumn();
 
     // Total Poderes Especiales (Específicos o de Actas Administrativas)
-    $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas')");
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas') AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas')");
+    }
     $total_poderes_especiales = (int)$stmt->fetchColumn();
 
     // Obtener los últimos 5 documentos registrados con LEFT JOIN para identificar revocaciones
-    $stmt = $pdo->query("SELECT d.*, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
-                         FROM documentos d 
-                         LEFT JOIN (
-                             SELECT id, numero_instrumento, libro, revoca_documento_id 
-                             FROM documentos 
-                             WHERE tipo = 'revocacion' AND revoca_documento_id IS NOT NULL
-                         ) r ON d.id = r.revoca_documento_id 
-                         ORDER BY d.created_at DESC LIMIT 5");
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT d.*, e.nombre AS empresa_nombre, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
+                             FROM documentos d 
+                             LEFT JOIN empresas e ON d.empresa_id = e.id
+                             LEFT JOIN (
+                                 SELECT id, numero_instrumento, libro, revoca_documento_id 
+                                 FROM documentos 
+                                 WHERE tipo = 'revocacion' AND revoca_documento_id IS NOT NULL
+                             ) r ON d.id = r.revoca_documento_id 
+                             WHERE d.empresa_id = :empresa_id
+                             ORDER BY d.created_at DESC LIMIT 5");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT d.*, e.nombre AS empresa_nombre, r.id AS revocacion_id, r.numero_instrumento AS revocacion_instrumento, r.libro AS revocacion_libro 
+                             FROM documentos d 
+                             LEFT JOIN empresas e ON d.empresa_id = e.id
+                             LEFT JOIN (
+                                 SELECT id, numero_instrumento, libro, revoca_documento_id 
+                                 FROM documentos 
+                                 WHERE tipo = 'revocacion' AND revoca_documento_id IS NOT NULL
+                             ) r ON d.id = r.revoca_documento_id 
+                             ORDER BY d.created_at DESC LIMIT 5");
+    }
     $ultimos_documentos = $stmt->fetchAll();
 
     // Obtener personas acreditadas para los últimos documentos de manera eficiente
@@ -67,21 +114,41 @@ try {
     $vencimientos_proximos = [];
     $hoy = date('Y-m-d');
     $limite_vencimiento = date('Y-m-d', strtotime('+30 days'));
-    $stmt_vence = $pdo->prepare("
-        SELECT d.* 
-        FROM documentos d
-        LEFT JOIN documentos r ON d.id = r.revoca_documento_id AND r.tipo = 'revocacion'
-        WHERE d.vigencia IS NOT NULL 
-          AND d.vigencia >= :hoy 
-          AND d.vigencia <= :limite 
-          AND r.id IS NULL
-        ORDER BY d.vigencia ASC
-        LIMIT 5
-    ");
-    $stmt_vence->execute([
-        'hoy' => $hoy,
-        'limite' => $limite_vencimiento
-    ]);
+    if ($empresa_id !== '') {
+        $stmt_vence = $pdo->prepare("
+            SELECT d.* 
+            FROM documentos d
+            LEFT JOIN documentos r ON d.id = r.revoca_documento_id AND r.tipo = 'revocacion'
+            WHERE d.vigencia IS NOT NULL 
+              AND d.vigencia >= :hoy 
+              AND d.vigencia <= :limite 
+              AND d.empresa_id = :empresa_id
+              AND r.id IS NULL
+            ORDER BY d.vigencia ASC
+            LIMIT 5
+        ");
+        $stmt_vence->execute([
+            'hoy' => $hoy,
+            'limite' => $limite_vencimiento,
+            'empresa_id' => $empresa_id
+        ]);
+    } else {
+        $stmt_vence = $pdo->prepare("
+            SELECT d.* 
+            FROM documentos d
+            LEFT JOIN documentos r ON d.id = r.revoca_documento_id AND r.tipo = 'revocacion'
+            WHERE d.vigencia IS NOT NULL 
+              AND d.vigencia >= :hoy 
+              AND d.vigencia <= :limite 
+              AND r.id IS NULL
+            ORDER BY d.vigencia ASC
+            LIMIT 5
+        ");
+        $stmt_vence->execute([
+            'hoy' => $hoy,
+            'limite' => $limite_vencimiento
+        ]);
+    }
     $vencimientos_proximos = $stmt_vence->fetchAll();
 } catch (PDOException $e) {
     // En caso de que falle
@@ -96,7 +163,20 @@ try {
     <nav class="navbar navbar-top navbar-expand-lg navbar-light bg-transparent">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1 fw-bold fs-4">Dashboard Principal</span>
-            <div class="ms-auto d-flex align-items-center gap-3">
+            <div class="ms-auto d-flex align-items-center gap-3 flex-wrap">
+                <!-- Selector de Empresa -->
+                <form method="GET" action="dashboard.php" id="form-empresa" class="d-flex align-items-center gap-2 m-0">
+                    <label for="empresa_id" class="text-muted fw-semibold mb-0" style="font-size: 0.85rem; white-space: nowrap;"><i class="fa-solid fa-building me-1"></i> Empresa:</label>
+                    <select class="form-select form-select-sm rounded-3" name="empresa_id" id="empresa_id" onchange="document.getElementById('form-empresa').submit()" style="min-width: 200px; padding: 0.35rem 2rem 0.35rem 0.75rem; border-color: #cbd5e1;">
+                        <option value="">Todas las Empresas</option>
+                        <?php foreach ($empresas as $emp): ?>
+                            <option value="<?php echo $emp['id']; ?>" <?php echo ($empresa_id == $emp['id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($emp['nombre']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+
                 <span class="badge bg-success rounded-pill px-3 py-2 d-flex align-items-center gap-2">
                     <span class="spinner-grow spinner-grow-sm text-light" role="status" style="width: 8px; height: 8px; animation-duration: 1.5s;"></span>
                     Sistema Online
@@ -257,14 +337,21 @@ try {
                                                     $badgeClass = 'bg-danger';
                                                 }
                                                 ?>
-                                                <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
-                                                    <?php echo htmlspecialchars($tipoLabel); ?>
-                                                </span>
-                                                <?php if (!empty($doc['revocacion_id'])): ?>
-                                                    <span class="badge bg-dark rounded-pill px-2 py-1" style="font-size: 0.75rem; background-color: #1e293b !important;" title="Revocado por Instrumento No. <?php echo htmlspecialchars($doc['revocacion_instrumento']); ?>">
-                                                        <i class="fa-solid fa-ban text-danger me-1"></i> Revocado
+                                                <div class="d-flex flex-column gap-1 align-items-start">
+                                                    <div class="d-flex gap-1 flex-wrap">
+                                                        <span class="badge <?php echo $badgeClass; ?> rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                                            <?php echo htmlspecialchars($tipoLabel); ?>
+                                                        </span>
+                                                        <?php if (!empty($doc['revocacion_id'])): ?>
+                                                            <span class="badge bg-dark rounded-pill px-2 py-1" style="font-size: 0.75rem; background-color: #1e293b !important;" title="Revocado por Instrumento No. <?php echo htmlspecialchars($doc['revocacion_instrumento']); ?>">
+                                                                <i class="fa-solid fa-ban text-danger me-1"></i> Revocado
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;" title="Empresa / Entidad">
+                                                        <i class="fa-solid fa-building me-1" style="font-size: 0.65rem;"></i><?php echo htmlspecialchars($doc['empresa_nombre'] ?? 'N/A'); ?>
                                                     </span>
-                                                <?php endif; ?>
+                                                </div>
                                             </td>
                                             <td>
                                                 <div class="text-dark fw-semibold" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">

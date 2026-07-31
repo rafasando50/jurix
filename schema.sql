@@ -25,6 +25,17 @@ VALUES (
 ) ON DUPLICATE KEY UPDATE `rol` = 'superadmin', `activo` = 1;
 
 
+-- Crear tabla de empresas
+CREATE TABLE IF NOT EXISTS `empresas` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `nombre` VARCHAR(255) NOT NULL UNIQUE,
+    `rfc` VARCHAR(20) DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insertar empresa por defecto
+INSERT INTO `empresas` (`nombre`) VALUES ('N/A') ON DUPLICATE KEY UPDATE `nombre` = 'N/A';
+
 -- Crear tabla de documentos
 CREATE TABLE IF NOT EXISTS `documentos` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -40,8 +51,10 @@ CREATE TABLE IF NOT EXISTS `documentos` (
     `vigencia` DATE DEFAULT NULL,
     `archivo_path` VARCHAR(255) DEFAULT NULL,
     `revoca_documento_id` INT DEFAULT NULL,
+    `empresa_id` INT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Crear tabla de personas

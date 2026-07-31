@@ -44,6 +44,36 @@ try {
     } catch (PDOException $ex) {
         // Ignorar si ya existe
     }
+
+    // Migración de Empresas para MySQL
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `empresas` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `nombre` VARCHAR(255) NOT NULL UNIQUE,
+            `rfc` VARCHAR(20) DEFAULT NULL,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
+        // Insertar empresa por defecto "N/A" si no hay registros
+        $stmt_emp = $pdo->query("SELECT COUNT(*) FROM `empresas` WHERE `nombre` = 'N/A'");
+        if ($stmt_emp->fetchColumn() == 0) {
+            $pdo->exec("INSERT INTO `empresas` (`nombre`) VALUES ('N/A')");
+        }
+    } catch (PDOException $ex) {
+        // Ignorar si falla
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN empresa_id INT DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
+        $pdo->exec("UPDATE documentos SET empresa_id = (SELECT id FROM empresas WHERE nombre = 'N/A' LIMIT 1) WHERE empresa_id IS NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si falla
+    }
     
     // Asegurar Super Admin Sistemas
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
@@ -127,6 +157,34 @@ try {
             $pdo->exec("ALTER TABLE documentos ADD COLUMN revoca_documento_id INTEGER DEFAULT NULL");
         } catch (PDOException $e) {
             // Ignorar si la columna ya existe o si falla
+        }
+
+        // Inicializar tabla de empresas
+        $pdo->exec("CREATE TABLE IF NOT EXISTS empresas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE,
+            rfc TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        // Insertar empresa por defecto "N/A" si no hay registros
+        $stmt_emp = $pdo->query("SELECT COUNT(*) FROM empresas WHERE nombre = 'N/A'");
+        if ($stmt_emp->fetchColumn() == 0) {
+            $pdo->exec("INSERT INTO empresas (nombre) VALUES ('N/A')");
+        }
+
+        // Agregar columna empresa_id a documentos
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN empresa_id INTEGER DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
+
+        // Asignar documentos existentes sin empresa_id a la empresa por defecto
+        try {
+            $pdo->exec("UPDATE documentos SET empresa_id = (SELECT id FROM empresas WHERE nombre = 'N/A' LIMIT 1) WHERE empresa_id IS NULL");
+        } catch (PDOException $e) {
+            // Ignorar
         }
 
         // Inicializar tablas para la normalización relacional

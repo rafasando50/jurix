@@ -101,6 +101,12 @@ if (isset($pdo)) {
                 <span>Usuarios</span>
             </a>
         </li>
+        <li class="<?php echo ($current_page === 'empresas.php') ? 'active' : ''; ?>">
+            <a href="empresas.php">
+                <i class="fa-solid fa-building"></i>
+                <span>Empresas</span>
+            </a>
+        </li>
         <?php endif; ?>
     </ul>
 
