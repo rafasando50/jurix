@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS `documentos` (
     `fecha_expedicion` DATE NOT NULL,
     `notaria` VARCHAR(255) NOT NULL,
     `ciudad_notaria` VARCHAR(255) NOT NULL,
+    `estado_notaria` VARCHAR(255) NOT NULL DEFAULT '',
     `notario` VARCHAR(255) NOT NULL,
     `tipo` ENUM('acta', 'poder', 'revocacion') NOT NULL,
     `subtipo` ENUM('constitutiva', 'asamblea_ordinaria', 'asamblea_extraordinaria', 'poder_amplio', 'poder_especifico', 'poder_actas_administrativas', 'ninguno') NOT NULL DEFAULT 'ninguno',

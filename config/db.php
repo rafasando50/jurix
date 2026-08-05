@@ -45,6 +45,12 @@ try {
         // Ignorar si ya existe
     }
 
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN estado_notaria VARCHAR(255) NOT NULL DEFAULT ''");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
     // Migración de Empresas para MySQL
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS `empresas` (
@@ -135,6 +141,7 @@ try {
             fecha_expedicion TEXT NOT NULL,
             notaria TEXT NOT NULL,
             ciudad_notaria TEXT NOT NULL,
+            estado_notaria TEXT NOT NULL DEFAULT '',
             notario TEXT NOT NULL,
             tipo TEXT NOT NULL,
             subtipo TEXT NOT NULL DEFAULT 'ninguno',
@@ -155,6 +162,12 @@ try {
 
         try {
             $pdo->exec("ALTER TABLE documentos ADD COLUMN revoca_documento_id INTEGER DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si la columna ya existe o si falla
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN estado_notaria TEXT DEFAULT ''");
         } catch (PDOException $e) {
             // Ignorar si la columna ya existe o si falla
         }

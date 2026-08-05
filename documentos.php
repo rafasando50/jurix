@@ -57,7 +57,7 @@ if (!empty($subtipo)) {
 }
 
 if (!empty($q)) {
-    $sql .= " AND (d.numero_instrumento LIKE :q OR d.libro LIKE :q OR d.notaria LIKE :q OR d.ciudad_notaria LIKE :q OR d.notario LIKE :q OR d.concepto LIKE :q OR d.id IN (
+    $sql .= " AND (d.numero_instrumento LIKE :q OR d.libro LIKE :q OR d.notaria LIKE :q OR d.ciudad_notaria LIKE :q OR d.estado_notaria LIKE :q OR d.notario LIKE :q OR d.concepto LIKE :q OR d.id IN (
         SELECT dp.documento_id 
         FROM documento_personas dp 
         JOIN personas p ON dp.persona_id = p.id 
@@ -177,7 +177,7 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                         <span class="input-group-text bg-transparent border-end-0 text-muted" style="border-radius: 12px 0 0 12px; border-color: #cbd5e1;">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </span>
-                        <input type="text" class="form-control border-start-0" name="q" placeholder="Buscar por instrumento, libro, notaría, notario, ciudad, concepto..." value="<?php echo htmlspecialchars($q); ?>" style="border-radius: 0 12px 12px 0;">
+                        <input type="text" class="form-control border-start-0" name="q" placeholder="Buscar por instrumento, libro, notaría, notario, ciudad, estado, concepto..." value="<?php echo htmlspecialchars($q); ?>" style="border-radius: 0 12px 12px 0;">
                     </div>
                 </div>
                 <div class="col-md-3 col-lg-2 d-grid">
@@ -366,7 +366,7 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                                     <td>
                                         <div class="text-dark fw-semibold" style="font-size: 0.9rem;">Notaría No. <?php echo htmlspecialchars($doc['notaria']); ?></div>
                                         <div class="text-muted" style="font-size: 0.8rem;"><?php echo htmlspecialchars($doc['notario']); ?></div>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($doc['ciudad_notaria']); ?></small>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($doc['ciudad_notaria'] . (!empty($doc['estado_notaria']) ? ', ' . $doc['estado_notaria'] : '')); ?></small>
                                     </td>
                                     <td>
                                         <div class="text-dark fw-medium" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<?php echo htmlspecialchars($doc['concepto']); ?>">

@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fecha_expedicion = isset($_POST['fecha_expedicion']) ? trim($_POST['fecha_expedicion']) : '';
     $notaria = isset($_POST['notaria']) ? trim($_POST['notaria']) : '';
     $ciudad_notaria = isset($_POST['ciudad_notaria']) ? trim($_POST['ciudad_notaria']) : '';
+    $estado_notaria = isset($_POST['estado_notaria']) ? trim($_POST['estado_notaria']) : '';
     $notario = isset($_POST['notario']) ? trim($_POST['notario']) : '';
     $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : '';
     $subtipo = isset($_POST['subtipo']) ? trim($_POST['subtipo']) : 'ninguno';
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vigencia = ($tiene_vigencia && !empty($_POST['vigencia'])) ? $_POST['vigencia'] : null;
 
     // Validar campos obligatorios
-    if (empty($numero_instrumento) || empty($libro) || empty($fecha_expedicion) || empty($notaria) || empty($ciudad_notaria) || empty($notario) || empty($tipo) || empty($concepto)) {
+    if (empty($numero_instrumento) || empty($libro) || empty($fecha_expedicion) || empty($notaria) || empty($ciudad_notaria) || empty($estado_notaria) || empty($notario) || empty($tipo) || empty($concepto)) {
         $error_message = "Por favor, complete todos los campos obligatorios.";
     } else {
         // Manejar subida de archivo PDF
@@ -96,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error_message)) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO documentos 
-                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path, revoca_documento_id, empresa_id) 
-                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path, :revoca_documento_id, :empresa_id)");
+                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, estado_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path, revoca_documento_id, empresa_id) 
+                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :estado_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path, :revoca_documento_id, :empresa_id)");
                 
                 $stmt->execute([
                     'numero_instrumento' => $numero_instrumento,
@@ -105,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'fecha_expedicion' => $fecha_expedicion,
                     'notaria' => $notaria,
                     'ciudad_notaria' => $ciudad_notaria,
+                    'estado_notaria' => $estado_notaria,
                     'notario' => $notario,
                     'tipo' => $tipo,
                     'subtipo' => $subtipo,
@@ -273,15 +275,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="notaria" class="form-label">Notaría Pública No. *</label>
                                 <input type="text" class="form-control" id="notaria" name="notaria" placeholder="Ej. 4" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="ciudad_notaria" class="form-label">Ciudad de la Notaría *</label>
                                 <input type="text" class="form-control" id="ciudad_notaria" name="ciudad_notaria" placeholder="Ej. Monterrey" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="estado_notaria" class="form-label">Estado de la Notaría *</label>
+                                <input type="text" class="form-control" id="estado_notaria" name="estado_notaria" placeholder="Ej. Nuevo León" required>
+                            </div>
+                            <div class="col-md-3">
                                 <label for="notario" class="form-label">Notario Titular *</label>
                                 <input type="text" class="form-control" id="notario" name="notario" placeholder="Ej. Lic. Juan Pérez" required>
                             </div>
