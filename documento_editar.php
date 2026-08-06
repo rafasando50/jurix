@@ -51,6 +51,11 @@ try {
     $acreditados = $stmt_p->fetchAll(PDO::FETCH_COLUMN);
     $doc['personas_acreditadas'] = implode(', ', $acreditados);
 
+    // Obtener socios relacionados
+    $stmt_s = $pdo->prepare("SELECT nombre, numero_acciones, valor_nominal, tipo_capital FROM documento_socios WHERE documento_id = :id");
+    $stmt_s->execute(['id' => $id]);
+    $doc_socios = $stmt_s->fetchAll();
+
 } catch (PDOException $e) {
     error_log("Error al consultar documento para edición: " . $e->getMessage());
     $error_message = "Error en el servidor al cargar los datos del documento.";
@@ -96,8 +101,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
     $vigencia = ($tiene_vigencia && !empty($_POST['vigencia'])) ? $_POST['vigencia'] : null;
 
+    // Nuevos campos para actas
+    $fme = ($tipo === 'acta' && isset($_POST['fme'])) ? trim($_POST['fme']) : null;
+    $fecha_registro_rpc = ($tipo === 'acta' && !empty($_POST['fecha_registro_rpc'])) ? trim($_POST['fecha_registro_rpc']) : null;
+
     // Validar campos obligatorios
+    $es_valido = true;
     if (empty($numero_instrumento) || empty($libro) || empty($fecha_expedicion) || empty($notaria) || empty($ciudad_notaria) || empty($estado_notaria) || empty($notario) || empty($tipo) || empty($concepto)) {
+        $es_valido = false;
+    }
+    if ($tipo === 'acta' && (empty($fme) || empty($fecha_registro_rpc))) {
+        $es_valido = false;
+    }
+
+    if (!$es_valido) {
         $error_message = "Por favor, complete todos los campos obligatorios.";
     } else {
         // Mantener la ruta del archivo anterior
@@ -150,7 +167,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     vigencia = :vigencia, 
                     archivo_path = :archivo_path,
                     revoca_documento_id = :revoca_documento_id,
-                    empresa_id = :empresa_id
+                    empresa_id = :empresa_id,
+                    fme = :fme,
+                    fecha_registro_rpc = :fecha_registro_rpc
                     WHERE id = :id");
                 
                 $stmt->execute([
@@ -168,6 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     'archivo_path' => $archivo_path,
                     'revoca_documento_id' => $revoca_documento_id,
                     'empresa_id' => $empresa_id,
+                    'fme' => $fme,
+                    'fecha_registro_rpc' => $fecha_registro_rpc,
                     'id' => $id
                 ]);
 
@@ -176,8 +197,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                 $stmt_del_relations = $pdo->prepare("DELETE FROM documento_personas WHERE documento_id = :id");
                 $stmt_del_relations->execute(['id' => $id]);
 
-                // 2. Insertar las nuevas relaciones
-                if (!empty($personas_acreditadas)) {
+                // 2. Insertar las nuevas relaciones (solo si no es acta)
+                if ($tipo !== 'acta' && !empty($personas_acreditadas)) {
                     $names = array_filter(array_map('trim', explode(',', $personas_acreditadas)));
                     
                     $stmt_sel_persona = $pdo->prepare("SELECT id FROM personas WHERE nombre = :nombre");
@@ -213,6 +234,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                     }
                 }
 
+                // Actualizar socios de forma relacional
+                // 1. Eliminar socios antiguos
+                $stmt_del_socios = $pdo->prepare("DELETE FROM documento_socios WHERE documento_id = :id");
+                $stmt_del_socios->execute(['id' => $id]);
+
+                // 2. Insertar nuevos socios si es acta
+                if ($tipo === 'acta' && isset($_POST['socio_nombre'])) {
+                    $socio_nombres = $_POST['socio_nombre'];
+                    $socio_acciones = $_POST['socio_acciones'] ?? [];
+                    $socio_valores = $_POST['socio_valor'] ?? [];
+                    $socio_capitales = $_POST['socio_capital'] ?? [];
+
+                    $stmt_ins_socio = $pdo->prepare("INSERT INTO documento_socios (documento_id, nombre, numero_acciones, valor_nominal, tipo_capital) VALUES (:documento_id, :nombre, :numero_acciones, :valor_nominal, :tipo_capital)");
+
+                    for ($i = 0; $i < count($socio_nombres); $i++) {
+                        $s_nombre = trim($socio_nombres[$i]);
+                        if (empty($s_nombre)) continue;
+
+                        $s_acciones = isset($socio_acciones[$i]) ? trim($socio_acciones[$i]) : null;
+                        $s_valor = (isset($socio_valores[$i]) && $socio_valores[$i] !== '') ? floatval($socio_valores[$i]) : null;
+                        $s_capital = isset($socio_capitales[$i]) ? trim($socio_capitales[$i]) : null;
+
+                        $stmt_ins_socio->execute([
+                            'documento_id' => $id,
+                            'nombre' => $s_nombre,
+                            'numero_acciones' => $s_acciones,
+                            'valor_nominal' => $s_valor,
+                            'tipo_capital' => $s_capital
+                        ]);
+                    }
+                }
+
                 $success_message = "Documento actualizado exitosamente.";
                 
                 // Recargar los nuevos datos locales
@@ -230,6 +283,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                 $doc['vigencia'] = $vigencia;
                 $doc['archivo_path'] = $archivo_path;
                 $doc['revoca_documento_id'] = $revoca_documento_id;
+                $doc['fme'] = $fme;
+                $doc['fecha_registro_rpc'] = $fecha_registro_rpc;
+
+                // Recargar socios locales
+                $stmt_s = $pdo->prepare("SELECT nombre, numero_acciones, valor_nominal, tipo_capital FROM documento_socios WHERE documento_id = :id");
+                $stmt_s->execute(['id' => $id]);
+                $doc_socios = $stmt_s->fetchAll();
 
                 // Redirigir al listado después de 1.5 segundos
                 echo "<script>
@@ -367,6 +427,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                             </div>
                         </div>
 
+                        <!-- Nuevos Campos de Expedición para Actas (FME y RPC) -->
+                        <div class="row g-3 mb-4 <?php echo ($doc['tipo'] === 'acta') ? '' : 'd-none'; ?>" id="campos_acta_expedicion">
+                            <div class="col-md-6">
+                                <label for="fme" class="form-label">FME (Folio Mercantil Electrónico) del RPC *</label>
+                                <input type="text" class="form-control" id="fme" name="fme" placeholder="Ej. N-2023045612" value="<?php echo htmlspecialchars($doc['fme'] ?? ''); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fecha_registro_rpc" class="form-label">Fecha de Registro en el RPC *</label>
+                                <input type="date" class="form-control" id="fecha_registro_rpc" name="fecha_registro_rpc" value="<?php echo htmlspecialchars($doc['fecha_registro_rpc'] ?? ''); ?>">
+                            </div>
+                        </div>
+
+                        <!-- Sección: Socios (Solo para Actas) -->
+                        <div id="seccion_socios" class="<?php echo ($doc['tipo'] === 'acta') ? '' : 'd-none'; ?> mb-4 p-4 rounded-3 border bg-light">
+                            <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                                <i class="fa-solid fa-users text-primary me-2"></i>Socios
+                            </h5>
+                            <p class="text-muted" style="font-size: 0.85rem;">Registre los socios de la sociedad, aportaciones y tipo de capital.</p>
+                            
+                            <div class="table-responsive mb-3">
+                                <table class="table table-hover align-middle border bg-white" id="tabla-socios">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Nombre del Socio *</th>
+                                            <th>Número de Acciones / Certificados *</th>
+                                            <th>Valor Nominal *</th>
+                                            <th>Tipo de Capital *</th>
+                                            <th class="text-center" style="width: 80px;">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="socios-tbody">
+                                        <!-- Se agregan dinámicamente con JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary rounded-3 py-2 px-3 btn-sm d-flex align-items-center gap-2" onclick="agregarSocioRow()">
+                                <i class="fa-solid fa-plus"></i> Agregar Socio
+                            </button>
+                        </div>
+
                         <!-- Sección 3: Concepto y Vigencia -->
                         <h5 class="fw-bold text-dark border-bottom pb-2 mb-4"><i class="fa-solid fa-calendar-days text-primary me-2"></i>Concepto y Vigencia</h5>
                         
@@ -375,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                             <textarea class="form-control" id="concepto" name="concepto" rows="3" placeholder="Describe el alcance del acta o las facultades otorgadas..." required><?php echo htmlspecialchars($doc['concepto']); ?></textarea>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3 <?php echo ($doc['tipo'] === 'acta') ? 'd-none' : ''; ?>" id="personas_acreditadas_container">
                             <label for="personas_acreditadas" class="form-label">Personas Acreditadas / Representantes / Titulares</label>
                             <textarea class="form-control" id="personas_acreditadas" name="personas_acreditadas" rows="2" placeholder="Escriba los nombres de las personas acreditadas o autorizadas en este documento..."><?php echo htmlspecialchars($doc['personas_acreditadas'] ?? ''); ?></textarea>
                             <small class="text-muted d-block mt-1">Escriba los nombres completos de las personas autorizadas o titulares de este documento. Puede separar múltiples nombres con comas.</small>
@@ -384,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
                         <div class="row g-3 align-items-center mb-4">
                             <div class="col-md-6">
                                 <div class="form-check form-switch pt-2">
-                                    <input class="form-check-input" type="checkbox" role="switch" id="tiene_vigencia" name="tiene_vigencia" onchange="toggleVigenciaInput()" <?php echo !empty($doc['vigencia']) ? 'checked' : ''; ?>>
+                                    <input class="form-check-input" type="checkbox" role="switch" id="tiene_vigencia" name="tiene_vigencia" onchange="toggleVigenciaInput()" <?php echo !empty($doc['vigencia']) ? 'checked' : ''; ?> <?php echo ($doc['tipo'] === 'acta') ? 'disabled' : ''; ?>>
                                     <label class="form-check-label fw-medium text-dark" for="tiene_vigencia">¿Este documento tiene fecha de vencimiento/vigencia?</label>
                                 </div>
                             </div>
@@ -435,6 +536,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $doc) {
 <script>
 // Guardar el subtipo actual del documento para pre-seleccionarlo
 const subtipoActual = '<?php echo $doc['subtipo'] ?? ''; ?>';
+
+let socioIndex = 0;
+
+function agregarSocioRow(nombre = '', acciones = '', valor = '', capital = 'fijo') {
+    const tbody = document.getElementById('socios-tbody');
+    const tr = document.createElement('tr');
+    tr.id = `socio-row-${socioIndex}`;
+    
+    tr.innerHTML = `
+        <td>
+            <input type="text" class="form-control" name="socio_nombre[]" value="${nombre}" placeholder="Nombre completo" required>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="socio_acciones[]" value="${acciones}" placeholder="Ej. 100" required>
+        </td>
+        <td>
+            <input type="number" step="0.01" class="form-control" name="socio_valor[]" value="${valor}" placeholder="Ej. 1000.00" required>
+        </td>
+        <td>
+            <select class="form-select" name="socio_capital[]" required>
+                <option value="fijo" ${capital === 'fijo' ? 'selected' : ''}>Fijo</option>
+                <option value="variable" ${capital === 'variable' ? 'selected' : ''}>Variable</option>
+            </select>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger rounded-3" onclick="eliminarSocioRow(${socioIndex})">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    tbody.appendChild(tr);
+    socioIndex++;
+}
+
+function eliminarSocioRow(index) {
+    const row = document.getElementById(`socio-row-${index}`);
+    if (row) {
+        row.remove();
+    }
+}
 
 function actualizarSubtipos() {
     const tipoSelect = document.getElementById('tipo');
@@ -508,6 +650,59 @@ function actualizarSubtipos() {
         revocaSelect.required = false;
         revocaSelect.value = '';
     }
+
+    // --- CAMBIOS PARA ACTAS ---
+    const camposActaExpedicion = document.getElementById('campos_acta_expedicion');
+    const fmeInput = document.getElementById('fme');
+    const rpcInput = document.getElementById('fecha_registro_rpc');
+    
+    const seccionSocios = document.getElementById('seccion_socios');
+    
+    const personasAcreditadasContainer = document.getElementById('personas_acreditadas_container');
+    const personasAcreditadasInput = document.getElementById('personas_acreditadas');
+    
+    const tieneVigenciaSwitch = document.getElementById('tiene_vigencia');
+    const vigenciaContainer = document.getElementById('vigencia-container');
+    const vigenciaInput = document.getElementById('vigencia');
+
+    if (valorTipo === 'acta') {
+        // Mostrar FME y RPC, hacerlos requeridos
+        camposActaExpedicion.classList.remove('d-none');
+        fmeInput.required = true;
+        rpcInput.required = true;
+        
+        // Mostrar Sección de Socios
+        seccionSocios.classList.remove('d-none');
+        
+        // Ocultar Personas Acreditadas
+        personasAcreditadasContainer.classList.add('d-none');
+        personasAcreditadasInput.value = '';
+        personasAcreditadasInput.required = false;
+        
+        // Deshabilitar y desmarcar Vigencia
+        tieneVigenciaSwitch.checked = false;
+        tieneVigenciaSwitch.disabled = true;
+        vigenciaContainer.classList.add('d-none');
+        vigenciaInput.value = '';
+        vigenciaInput.required = false;
+    } else {
+        // Ocultar FME y RPC
+        camposActaExpedicion.classList.add('d-none');
+        fmeInput.required = false;
+        fmeInput.value = '';
+        rpcInput.required = false;
+        rpcInput.value = '';
+        
+        // Ocultar Sección de Socios, limpiar filas
+        seccionSocios.classList.add('d-none');
+        document.getElementById('socios-tbody').innerHTML = '';
+        
+        // Mostrar Personas Acreditadas
+        personasAcreditadasContainer.classList.remove('d-none');
+        
+        // Habilitar switch de Vigencia
+        tieneVigenciaSwitch.disabled = false;
+    }
 }
 
 function toggleVigenciaInput() {
@@ -528,8 +723,14 @@ function toggleVigenciaInput() {
 // Inicializar el formulario con los datos pre-cargados
 window.onload = function() {
     actualizarSubtipos();
-    // En caso de que se haya cargado una revocación u otro tipo
-    // la llamada a actualizarSubtipos ya establece el valor correcto
+    
+    // Cargar socios preexistentes si existen
+    <?php if ($doc['tipo'] === 'acta' && !empty($doc_socios)): ?>
+        const sociosExistentes = <?php echo json_encode($doc_socios); ?>;
+        sociosExistentes.forEach(s => {
+            agregarSocioRow(s.nombre, s.numero_acciones, s.valor_nominal, s.tipo_capital);
+        });
+    <?php endif; ?>
 };
 </script>
 

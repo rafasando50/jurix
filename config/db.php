@@ -80,6 +80,32 @@ try {
     } catch (PDOException $ex) {
         // Ignorar si falla
     }
+
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN fme VARCHAR(255) DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN fecha_registro_rpc DATE DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `documento_socios` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `documento_id` INT NOT NULL,
+            `nombre` VARCHAR(255) NOT NULL,
+            `numero_acciones` VARCHAR(255) DEFAULT NULL,
+            `valor_nominal` DECIMAL(15,2) DEFAULT NULL,
+            `tipo_capital` VARCHAR(50) DEFAULT NULL,
+            FOREIGN KEY (`documento_id`) REFERENCES `documentos` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    } catch (PDOException $ex) {
+        // Ignorar si falla
+    }
     
     // Asegurar Super Admin Sistemas
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
@@ -149,6 +175,8 @@ try {
             personas_acreditadas TEXT DEFAULT NULL,
             vigencia TEXT DEFAULT NULL,
             archivo_path TEXT DEFAULT NULL,
+            fme TEXT DEFAULT NULL,
+            fecha_registro_rpc TEXT DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
@@ -170,6 +198,18 @@ try {
             $pdo->exec("ALTER TABLE documentos ADD COLUMN estado_notaria TEXT DEFAULT ''");
         } catch (PDOException $e) {
             // Ignorar si la columna ya existe o si falla
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN fme TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN fecha_registro_rpc TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
         }
 
         // Inicializar tabla de empresas
@@ -212,6 +252,16 @@ try {
             PRIMARY KEY (documento_id, persona_id),
             FOREIGN KEY (documento_id) REFERENCES documentos (id) ON DELETE CASCADE,
             FOREIGN KEY (persona_id) REFERENCES personas (id) ON DELETE CASCADE
+        )");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS documento_socios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            documento_id INTEGER NOT NULL,
+            nombre TEXT NOT NULL,
+            numero_acciones TEXT DEFAULT NULL,
+            valor_nominal REAL DEFAULT NULL,
+            tipo_capital TEXT DEFAULT NULL,
+            FOREIGN KEY (documento_id) REFERENCES documentos (id) ON DELETE CASCADE
         )");
 
         // Migración automática de datos legacy de personas_acreditadas

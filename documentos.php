@@ -62,6 +62,10 @@ if (!empty($q)) {
         FROM documento_personas dp 
         JOIN personas p ON dp.persona_id = p.id 
         WHERE p.nombre LIKE :q
+    ) OR d.id IN (
+        SELECT ds.documento_id
+        FROM documento_socios ds
+        WHERE ds.nombre LIKE :q
     ))";
     $params['q'] = '%' . $q . '%';
 }
@@ -86,9 +90,12 @@ try {
     
     // Obtener personas acreditadas para los documentos resultantes de manera eficiente
     $acreditados_map = [];
+    // Obtener socios para los documentos resultantes de manera eficiente
+    $socios_map = [];
     if (!empty($documentos)) {
         $doc_ids = array_column($documentos, 'id');
         $placeholders = implode(',', array_fill(0, count($doc_ids), '?'));
+        
         $stmt_acred = $pdo->prepare("SELECT dp.documento_id, p.nombre 
                                      FROM documento_personas dp 
                                      JOIN personas p ON dp.persona_id = p.id 
@@ -96,6 +103,14 @@ try {
         $stmt_acred->execute($doc_ids);
         while ($row_acred = $stmt_acred->fetch()) {
             $acreditados_map[$row_acred['documento_id']][] = $row_acred['nombre'];
+        }
+
+        $stmt_soc = $pdo->prepare("SELECT documento_id, nombre, numero_acciones, valor_nominal, tipo_capital 
+                                   FROM documento_socios 
+                                   WHERE documento_id IN ($placeholders)");
+        $stmt_soc->execute($doc_ids);
+        while ($row_soc = $stmt_soc->fetch()) {
+            $socios_map[$row_soc['documento_id']][] = $row_soc;
         }
     }
 } catch (PDOException $e) {
@@ -326,7 +341,10 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                                 <tr>
                                     <td>
                                         <div class="fw-bold text-dark">No. <?php echo htmlspecialchars($doc['numero_instrumento']); ?></div>
-                                        <small class="text-muted">Libro: <?php echo htmlspecialchars($doc['libro']); ?></small>
+                                        <small class="text-muted d-block">Libro: <?php echo htmlspecialchars($doc['libro']); ?></small>
+                                        <?php if ($doc['tipo'] === 'acta' && !empty($doc['fme'])): ?>
+                                            <small class="text-dark d-block" style="font-size: 0.75rem;"><strong class="text-secondary">FME:</strong> <?php echo htmlspecialchars($doc['fme']); ?></small>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php
@@ -362,6 +380,9 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                                     </td>
                                     <td>
                                         <div class="text-dark"><?php echo date('d/m/Y', strtotime($doc['fecha_expedicion'])); ?></div>
+                                        <?php if ($doc['tipo'] === 'acta' && !empty($doc['fecha_registro_rpc'])): ?>
+                                            <small class="text-muted d-block" style="font-size: 0.75rem;"><strong class="text-secondary">RPC:</strong> <?php echo date('d/m/Y', strtotime($doc['fecha_registro_rpc'])); ?></small>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="text-dark fw-semibold" style="font-size: 0.9rem;">Notaría No. <?php echo htmlspecialchars($doc['notaria']); ?></div>
@@ -385,6 +406,26 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
                                                         echo substr($acred, 0, 47) . '...';
                                                     } else {
                                                         echo $acred;
+                                                    }
+                                                    ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])): 
+                                            $socios_list = array_map(function($s) {
+                                                return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
+                                            }, $socios_map[$doc['id']]);
+                                            $socios_str = implode(', ', $socios_list);
+                                        ?>
+                                            <div class="mt-1" style="font-size: 0.8rem;">
+                                                <strong class="text-dark"><i class="fa-solid fa-users me-1 text-primary"></i>Socios:</strong>
+                                                <span class="text-muted" title="<?php echo htmlspecialchars($socios_str); ?>">
+                                                    <?php 
+                                                    $socs = htmlspecialchars($socios_str);
+                                                    if (strlen($socs) > 50) {
+                                                        echo substr($socs, 0, 47) . '...';
+                                                    } else {
+                                                        echo $socs;
                                                     }
                                                     ?>
                                                 </span>
