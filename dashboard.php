@@ -27,9 +27,19 @@ try {
 
 // Consultas para estadísticas
 $total_docs = 0;
+$total_empresas = 0;
+$total_personas_fisicas = 0;
+
 $total_actas = 0;
+$total_actas_constitutiva = 0;
+$total_actas_ordinaria = 0;
+$total_actas_extraordinaria = 0;
+
+$total_poderes = 0;
 $total_poderes_amplios = 0;
-$total_poderes_especiales = 0;
+$total_poderes_especifico = 0;
+$total_poderes_actas_admin = 0;
+
 $ultimos_documentos = [];
 
 try {
@@ -42,7 +52,15 @@ try {
     }
     $total_docs = (int)$stmt->fetchColumn();
 
-    // Total Actas/Asambleas
+    // Total Empresas
+    $stmt = $pdo->query("SELECT COUNT(*) FROM empresas");
+    $total_empresas = (int)$stmt->fetchColumn();
+
+    // Total Personas Físicas (Placeholder, siempre 0)
+    $total_personas_fisicas = 0;
+
+    // --- ACTAS ---
+    // Total Actas
     if ($empresa_id !== '') {
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND empresa_id = :empresa_id");
         $stmt->execute(['empresa_id' => $empresa_id]);
@@ -51,7 +69,44 @@ try {
     }
     $total_actas = (int)$stmt->fetchColumn();
 
-    // Total Poderes Amplios
+    // Acta Constitutiva
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'constitutiva' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'constitutiva'");
+    }
+    $total_actas_constitutiva = (int)$stmt->fetchColumn();
+
+    // Asamblea Ordinaria
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'asamblea_ordinaria' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'asamblea_ordinaria'");
+    }
+    $total_actas_ordinaria = (int)$stmt->fetchColumn();
+
+    // Asamblea Extraordinaria
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'asamblea_extraordinaria' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'acta' AND subtipo = 'asamblea_extraordinaria'");
+    }
+    $total_actas_extraordinaria = (int)$stmt->fetchColumn();
+
+    // --- PODERES ---
+    // Total Poderes
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder'");
+    }
+    $total_poderes = (int)$stmt->fetchColumn();
+
+    // Poder Amplio
     if ($empresa_id !== '') {
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_amplio' AND empresa_id = :empresa_id");
         $stmt->execute(['empresa_id' => $empresa_id]);
@@ -60,14 +115,23 @@ try {
     }
     $total_poderes_amplios = (int)$stmt->fetchColumn();
 
-    // Total Poderes Especiales (Específicos o de Actas Administrativas)
+    // Poder Específico
     if ($empresa_id !== '') {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas') AND empresa_id = :empresa_id");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_especifico' AND empresa_id = :empresa_id");
         $stmt->execute(['empresa_id' => $empresa_id]);
     } else {
-        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo IN ('poder_especifico', 'poder_actas_administrativas')");
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_especifico'");
     }
-    $total_poderes_especiales = (int)$stmt->fetchColumn();
+    $total_poderes_especifico = (int)$stmt->fetchColumn();
+
+    // Poder Actas Administrativas
+    if ($empresa_id !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_actas_administrativas' AND empresa_id = :empresa_id");
+        $stmt->execute(['empresa_id' => $empresa_id]);
+    } else {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM documentos WHERE tipo = 'poder' AND subtipo = 'poder_actas_administrativas'");
+    }
+    $total_poderes_actas_admin = (int)$stmt->fetchColumn();
 
     // Obtener los últimos 5 documentos registrados con LEFT JOIN para identificar revocaciones
     if ($empresa_id !== '') {
@@ -202,44 +266,100 @@ try {
         <!-- Tarjeta de Bienvenida -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="p-4 rounded-4" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.08) 0%, rgba(30, 64, 175, 0.04) 100%); border: 1px solid rgba(29, 78, 216, 0.15);">
-                    <h2 class="fw-bold text-dark mb-2">¡Hola de nuevo, <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>!</h2>
-                    <p class="text-muted mb-0 fs-5">Bienvenido a SISCORL. Desde aquí puedes gestionar las actas, poderes y alcances legales.</p>
+                <div class="p-3 rounded-4" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.08) 0%, rgba(30, 64, 175, 0.04) 100%); border: 1px solid rgba(29, 78, 216, 0.15);">
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-face-smile text-primary me-2"></i>¡Bienvenido, <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>!</h4>
                 </div>
             </div>
         </div>
 
-        <!-- Fila de Estadísticas Rápidas (Poderes y Actas) -->
+        <!-- Fila de Estadísticas Rápidas (3 Columnas) -->
         <div class="row g-4 mb-4">
-            <!-- Total de Documentos -->
-            <div class="col-md-6 col-xl-3">
-                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #1d4ed8 !important;">
-                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Documentos</span>
-                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_docs; ?></h3>
+            <!-- Columna 1: Resumen General -->
+            <div class="col-xl-4 col-md-6">
+                <div class="stat-card p-4 h-100 d-flex flex-column" style="border-top: 5px solid #1d4ed8 !important;">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Resumen General</span>
+                            <h3 class="fw-bold mb-0 text-dark mt-1" style="font-size: 2.2rem; line-height: 1;"><?php echo $total_docs; ?></h3>
+                            <small class="text-muted" style="font-size: 0.8rem;">Documentos Totales</small>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                            <i class="fa-solid fa-folder-open fs-3"></i>
+                        </div>
+                    </div>
+                    <hr class="my-3" style="border-color: rgba(0,0,0,0.08);">
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-building me-2 text-primary" style="width: 16px;"></i>Empresas Registradas</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_empresas; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-user me-2 text-primary" style="width: 16px;"></i>Personas Físicas</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_personas_fisicas; ?></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Actas Constitutivas -->
-            <div class="col-md-6 col-xl-3">
-                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #0e7490 !important;">
-                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Actas / Asambleas</span>
-                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_actas; ?></h3>
+            <!-- Columna 2: Actas y Asambleas -->
+            <div class="col-xl-4 col-md-6">
+                <div class="stat-card p-4 h-100 d-flex flex-column" style="border-top: 5px solid #0e7490 !important;">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Actas y Asambleas</span>
+                            <h3 class="fw-bold mb-0 text-dark mt-1" style="font-size: 2.2rem; line-height: 1;"><?php echo $total_actas; ?></h3>
+                            <small class="text-muted" style="font-size: 0.8rem;">Total Registrado</small>
+                        </div>
+                        <div class="bg-info bg-opacity-10 text-info rounded-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                            <i class="fa-solid fa-landmark fs-3"></i>
+                        </div>
+                    </div>
+                    <hr class="my-3" style="border-color: rgba(0,0,0,0.08);">
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-file-signature me-2 text-info" style="width: 16px;"></i>Constitutivas</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_actas_constitutiva; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-users-rectangle me-2 text-info" style="width: 16px;"></i>Asambleas Ordinarias</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_actas_ordinaria; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-circle-nodes me-2 text-info" style="width: 16px;"></i>Asambleas Extraord.</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_actas_extraordinaria; ?></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Poderes Amplios -->
-            <div class="col-md-6 col-xl-3">
-                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #15803d !important;">
-                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Poderes Amplios</span>
-                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_poderes_amplios; ?></h3>
-                </div>
-            </div>
-
-            <!-- Poderes Especiales -->
-            <div class="col-md-6 col-xl-3">
-                <div class="stat-card p-3 h-100 d-flex flex-column justify-content-center" style="border-left: 5px solid #b45309 !important;">
-                    <span class="text-muted d-block mb-1 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px; line-height: 1.2;">Poderes Especiales/Adm</span>
-                    <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.8rem; line-height: 1;"><?php echo $total_poderes_especiales; ?></h3>
+            <!-- Columna 3: Poderes -->
+            <div class="col-xl-4 col-md-12">
+                <div class="stat-card p-4 h-100 d-flex flex-column" style="border-top: 5px solid #15803d !important;">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Poderes</span>
+                            <h3 class="fw-bold mb-0 text-dark mt-1" style="font-size: 2.2rem; line-height: 1;"><?php echo $total_poderes; ?></h3>
+                            <small class="text-muted" style="font-size: 0.8rem;">Total Registrado</small>
+                        </div>
+                        <div class="bg-success bg-opacity-10 text-success rounded-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                            <i class="fa-solid fa-scale-balanced fs-3"></i>
+                        </div>
+                    </div>
+                    <hr class="my-3" style="border-color: rgba(0,0,0,0.08);">
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-shield-halved me-2 text-success" style="width: 16px;"></i>Poderes Amplios</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_poderes_amplios; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-key me-2 text-success" style="width: 16px;"></i>Poderes Específicos</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_poderes_especifico; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-file-invoice me-2 text-success" style="width: 16px;"></i>Actas Administrativas</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.85rem;"><?php echo $total_poderes_actas_admin; ?></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
