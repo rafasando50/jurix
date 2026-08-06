@@ -120,7 +120,7 @@ try {
         }
 
         // Obtener Socios
-        $stmt_soc = $pdo->prepare("SELECT documento_id, nombre, numero_acciones, valor_nominal, tipo_capital 
+        $stmt_soc = $pdo->prepare("SELECT documento_id, nombre, nacionalidad, domicilio_social, numero_acciones, valor_nominal, tipo_capital 
                                    FROM documento_socios 
                                    WHERE documento_id IN ($placeholders)");
         $stmt_soc->execute($doc_ids);
@@ -137,7 +137,7 @@ try {
 if ($formato === 'excel') {
     if ($tipo === 'expirar') {
         $filename = "documentos_vencidos_alertas_" . date('Ymd_His') . ".csv";
-        $header = ['Tipo', 'Subtipo', 'No. Instrumento', 'Libro', 'Empresa/Entidad', 'Fecha Expedición', 'Concepto', 'Vigencia', 'Días Restantes', 'Notaría', 'Notario', 'Detalle (Acreditados/Socios)'];
+        $header = ['Tipo', 'Subtipo', 'No. Instrumento', 'Libro', 'Nombre / Razón Social', 'Fecha Expedición', 'Concepto', 'Vigencia', 'Días Restantes', 'Notaría', 'Notario', 'Administrador Único', 'Comisario', 'Detalle (Acreditados/Socios)'];
         
         $data = [];
         foreach ($documentos as $doc) {
@@ -164,7 +164,9 @@ if ($formato === 'excel') {
             $detalle = '';
             if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])) {
                 $socios_list = array_map(function($s) {
-                    return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
+                    $nacionalidad = !empty($s['nacionalidad']) ? $s['nacionalidad'] : 'Mexicana';
+                    $domicilio = !empty($s['domicilio_social']) ? ', ' . $s['domicilio_social'] : '';
+                    return $s['nombre'] . ' (' . $nacionalidad . $domicilio . ', ' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
                 }, $socios_map[$doc['id']]);
                 $detalle = implode(', ', $socios_list);
             } else {
@@ -183,12 +185,14 @@ if ($formato === 'excel') {
                 $dias_restantes . ' días',
                 'No. ' . $doc['notaria'],
                 $doc['notario'],
+                $doc['administrador_unico'] ?? '',
+                $doc['comisario'] ?? '',
                 $detalle
             ];
         }
     } else {
         $filename = "reporte_documentos_" . date('Ymd_His') . ".csv";
-        $header = ['Tipo', 'Subtipo', 'No. Instrumento', 'Libro', 'Fecha Expedición', 'Empresa/Entidad', 'Notaría', 'Notario', 'Ciudad/Estado', 'Concepto', 'Vigencia', 'FME', 'Fecha Reg. RPC', 'Detalle (Acreditados/Socios)'];
+        $header = ['Tipo', 'Subtipo', 'No. Instrumento', 'Libro', 'Fecha Expedición', 'Nombre / Razón Social', 'Notaría', 'Notario', 'Ciudad/Estado', 'Concepto', 'Vigencia', 'FME', 'Fecha Reg. RPC', 'Administrador Único', 'Comisario', 'Detalle (Acreditados/Socios)'];
         
         $data = [];
         foreach ($documentos as $doc) {
@@ -217,7 +221,9 @@ if ($formato === 'excel') {
             $detalle = '';
             if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])) {
                 $socios_list = array_map(function($s) {
-                    return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
+                    $nacionalidad = !empty($s['nacionalidad']) ? $s['nacionalidad'] : 'Mexicana';
+                    $domicilio = !empty($s['domicilio_social']) ? ', ' . $s['domicilio_social'] : '';
+                    return $s['nombre'] . ' (' . $nacionalidad . $domicilio . ', ' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
                 }, $socios_map[$doc['id']]);
                 $detalle = implode(', ', $socios_list);
             } else {
@@ -238,6 +244,8 @@ if ($formato === 'excel') {
                 $vigencia,
                 $doc['fme'] ?? '',
                 !empty($doc['fecha_registro_rpc']) ? date('d/m/Y', strtotime($doc['fecha_registro_rpc'])) : '',
+                $doc['administrador_unico'] ?? '',
+                $doc['comisario'] ?? '',
                 $detalle
             ];
         }
@@ -331,15 +339,15 @@ if ($formato === 'pdf'):
 
     <div class="container-fluid py-2 px-4">
         <!-- Encabezado del Reporte -->
-        <div class="report-header d-flex align-items-center justify-content-between">
+        <div class="report-header d-flex align-items-center justify-content-between pb-3 mb-4">
             <div>
-                <h2 class="fw-bold text-dark mb-1"><?php echo htmlspecialchars($title); ?></h2>
-                <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                    Generado el: <strong><?php echo date('d/m/Y H:i'); ?></strong> | Usuario: <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>
+                <h2 class="fw-bold text-dark mb-1">Reporte</h2>
+                <p class="text-muted mb-0" style="font-size: 0.85rem;">
+                    Tipo: <strong><?php echo htmlspecialchars($title); ?></strong> | Generado el: <strong><?php echo date('d/m/Y H:i'); ?></strong> | Usuario: <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>
                 </p>
             </div>
             <div class="text-end">
-                <h5 class="fw-bold text-primary mb-0">Sistema de Gestión Documental</h5>
+                <h4 class="fw-bold text-primary mb-0">SISCORL</h4>
                 <small class="text-muted">Einsur Supply S.A. de C.V.</small>
             </div>
         </div>
@@ -358,7 +366,7 @@ if ($formato === 'pdf'):
                             <tr>
                                 <th style="width: 15%;">Tipo Documento</th>
                                 <th style="width: 10%;">Inst./Libro</th>
-                                <th style="width: 15%;">Empresa</th>
+                                <th style="width: 15%;">Nombre / Razón Social</th>
                                 <th style="width: 10%;">Fecha Exped.</th>
                                 <th style="width: 25%;">Concepto</th>
                                 <th style="width: 13%;">Vigencia</th>
@@ -398,14 +406,28 @@ if ($formato === 'pdf'):
                                     <td>
                                         <div class="fw-medium mb-1"><?php echo htmlspecialchars($doc['concepto']); ?></div>
                                         
-                                        <?php if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])): 
-                                            $socios_list = array_map(function($s) {
-                                                return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ')';
-                                            }, $socios_map[$doc['id']]);
-                                        ?>
-                                            <div style="font-size: 0.75rem;" class="text-info mt-1">
-                                                <strong>Socios:</strong> <?php echo htmlspecialchars(implode(', ', $socios_list)); ?>
-                                            </div>
+                                        <?php if ($doc['tipo'] === 'acta'): ?>
+                                            <?php if (isset($socios_map[$doc['id']])): 
+                                                $socios_list = array_map(function($s) {
+                                                    $nacionalidad = !empty($s['nacionalidad']) ? $s['nacionalidad'] : 'Mexicana';
+                                                    $domicilio = !empty($s['domicilio_social']) ? ', ' . $s['domicilio_social'] : '';
+                                                    return $s['nombre'] . ' (' . $nacionalidad . $domicilio . ', ' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ')';
+                                                }, $socios_map[$doc['id']]);
+                                            ?>
+                                                <div style="font-size: 0.75rem;" class="text-info mt-1">
+                                                    <strong>Socios:</strong> <?php echo htmlspecialchars(implode(', ', $socios_list)); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($doc['administrador_unico']) || !empty($doc['comisario'])): ?>
+                                                <div style="font-size: 0.75rem;" class="text-info mt-1">
+                                                    <?php if (!empty($doc['administrador_unico'])): ?>
+                                                        <strong>Adm. Único:</strong> <?php echo htmlspecialchars($doc['administrador_unico']); ?> &nbsp;&nbsp;
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($doc['comisario'])): ?>
+                                                        <strong>Comisario:</strong> <?php echo htmlspecialchars($doc['comisario']); ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php elseif (isset($acreditados_map[$doc['id']])): ?>
                                             <div style="font-size: 0.75rem;" class="text-success mt-1">
                                                 <strong>Acreditados:</strong> <?php echo htmlspecialchars(implode(', ', $acreditados_map[$doc['id']])); ?>
@@ -441,7 +463,7 @@ if ($formato === 'pdf'):
                             <tr>
                                 <th style="width: 12%;">Tipo / Subtipo</th>
                                 <th style="width: 10%;">Inst. / Libro</th>
-                                <th style="width: 15%;">Empresa</th>
+                                <th style="width: 15%;">Nombre / Razón Social</th>
                                 <th style="width: 10%;">Fecha Exped.</th>
                                 <th style="width: 12%;">Notaría / Ciudad</th>
                                 <th style="width: 25%;">Concepto / Detalle</th>
@@ -485,14 +507,28 @@ if ($formato === 'pdf'):
                                     <td>
                                         <div class="fw-medium mb-1"><?php echo htmlspecialchars($doc['concepto']); ?></div>
                                         
-                                        <?php if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])): 
-                                            $socios_list = array_map(function($s) {
-                                                return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ')';
-                                            }, $socios_map[$doc['id']]);
-                                        ?>
-                                            <div style="font-size: 0.75rem;" class="text-info mt-1">
-                                                <strong>Socios:</strong> <?php echo htmlspecialchars(implode(', ', $socios_list)); ?>
-                                            </div>
+                                        <?php if ($doc['tipo'] === 'acta'): ?>
+                                            <?php if (isset($socios_map[$doc['id']])): 
+                                                $socios_list = array_map(function($s) {
+                                                    $nacionalidad = !empty($s['nacionalidad']) ? $s['nacionalidad'] : 'Mexicana';
+                                                    $domicilio = !empty($s['domicilio_social']) ? ', ' . $s['domicilio_social'] : '';
+                                                    return $s['nombre'] . ' (' . $nacionalidad . $domicilio . ', ' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ')';
+                                                }, $socios_map[$doc['id']]);
+                                            ?>
+                                                <div style="font-size: 0.75rem;" class="text-info mt-1">
+                                                    <strong>Socios:</strong> <?php echo htmlspecialchars(implode(', ', $socios_list)); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($doc['administrador_unico']) || !empty($doc['comisario'])): ?>
+                                                <div style="font-size: 0.75rem;" class="text-info mt-1">
+                                                    <?php if (!empty($doc['administrador_unico'])): ?>
+                                                        <strong>Adm. Único:</strong> <?php echo htmlspecialchars($doc['administrador_unico']); ?> &nbsp;&nbsp;
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($doc['comisario'])): ?>
+                                                        <strong>Comisario:</strong> <?php echo htmlspecialchars($doc['comisario']); ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php elseif (isset($acreditados_map[$doc['id']])): ?>
                                             <div style="font-size: 0.75rem;" class="text-success mt-1">
                                                 <strong>Acreditados:</strong> <?php echo htmlspecialchars(implode(', ', $acreditados_map[$doc['id']])); ?>
@@ -507,12 +543,12 @@ if ($formato === 'pdf'):
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($doc['tipo'] === 'acta'): ?>
-                                            <div>FME: <?php echo htmlspecialchars($doc['fme'] ?? '-'); ?></div>
-                                            <small class="text-muted">RPC: <?php echo !empty($doc['fecha_registro_rpc']) ? date('d/m/Y', strtotime($doc['fecha_registro_rpc'])) : '-'; ?></small>
-                                        <?php else: ?>
-                                            <span class="text-muted">-</span>
-                                        <?php endif; ?>
+                                         <?php if (!empty($doc['fme']) || !empty($doc['fecha_registro_rpc'])): ?>
+                                             <div>FME: <?php echo htmlspecialchars($doc['fme'] ?? '-'); ?></div>
+                                             <small class="text-muted">RPC: <?php echo !empty($doc['fecha_registro_rpc']) ? date('d/m/Y', strtotime($doc['fecha_registro_rpc'])) : '-'; ?></small>
+                                         <?php else: ?>
+                                             <span class="text-muted">-</span>
+                                         <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -524,7 +560,7 @@ if ($formato === 'pdf'):
 
         <!-- Pie de página del reporte (Impresión) -->
         <div class="mt-5 text-center text-muted border-top pt-3" style="font-size: 0.75rem;">
-            Reporte generado automáticamente desde el Sistema de Gestión Documental y Poderes de Einsur Supply S.A. de C.V.
+            Reporte generado automáticamente desde SISCORL de Einsur Supply S.A. de C.V.
         </div>
     </div>
 

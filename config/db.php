@@ -94,6 +94,18 @@ try {
     }
 
     try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN administrador_unico VARCHAR(255) DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE documentos ADD COLUMN comisario VARCHAR(255) DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS `documento_socios` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `documento_id` INT NOT NULL,
@@ -105,6 +117,18 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     } catch (PDOException $ex) {
         // Ignorar si falla
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE `documento_socios` ADD COLUMN `nacionalidad` VARCHAR(255) DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE `documento_socios` ADD COLUMN `domicilio_social` VARCHAR(500) DEFAULT NULL");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
     }
     
     // Asegurar Super Admin Sistemas
@@ -177,6 +201,8 @@ try {
             archivo_path TEXT DEFAULT NULL,
             fme TEXT DEFAULT NULL,
             fecha_registro_rpc TEXT DEFAULT NULL,
+            administrador_unico TEXT DEFAULT NULL,
+            comisario TEXT DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
@@ -208,6 +234,18 @@ try {
 
         try {
             $pdo->exec("ALTER TABLE documentos ADD COLUMN fecha_registro_rpc TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN administrador_unico TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE documentos ADD COLUMN comisario TEXT DEFAULT NULL");
         } catch (PDOException $e) {
             // Ignorar si ya existe
         }
@@ -263,6 +301,18 @@ try {
             tipo_capital TEXT DEFAULT NULL,
             FOREIGN KEY (documento_id) REFERENCES documentos (id) ON DELETE CASCADE
         )");
+
+        try {
+            $pdo->exec("ALTER TABLE `documento_socios` ADD COLUMN `nacionalidad` TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE `documento_socios` ADD COLUMN `domicilio_social` TEXT DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
 
         // Migración automática de datos legacy de personas_acreditadas
         try {

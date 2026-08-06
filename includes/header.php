@@ -23,7 +23,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_rol'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión Documental y Poderes</title>
+    <title>SISCORL</title>
     <!-- Favicon -->
     <link rel="shortcut icon" href="assets/img/favicon.ico" type="image/x-icon">
     <!-- Bootstrap 5 CDN -->

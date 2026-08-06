@@ -175,7 +175,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Barra Superior de Navegación Rápida -->
     <nav class="navbar navbar-top navbar-expand-lg navbar-light bg-transparent">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Empresas / Entidades</span>
+            <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Nombres / Razones Sociales</span>
             <div class="ms-auto d-flex align-items-center gap-3">
                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2 fw-semibold">
                     <i class="fa-solid fa-building me-1"></i> <?php echo count($empresas); ?> Registradas

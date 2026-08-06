@@ -37,7 +37,7 @@ if (isset($pdo)) {
         <div class="logo-container m-0" style="width: 40px; height: 40px; border-radius: 10px;">
             <i class="fa-solid fa-folder-open" style="font-size: 1.2rem;"></i>
         </div>
-        <span class="fw-bold fs-5 tracking-wide text-dark">SGD Poderes</span>
+        <span class="fw-bold fs-5 tracking-wide text-dark">SISCORL</span>
     </div>
 
     <ul class="components">
@@ -104,7 +104,7 @@ if (isset($pdo)) {
         <li class="<?php echo ($current_page === 'empresas.php') ? 'active' : ''; ?>">
             <a href="empresas.php">
                 <i class="fa-solid fa-building"></i>
-                <span>Empresas</span>
+                <span>Nombres / Razones Sociales</span>
             </a>
         </li>
         <?php endif; ?>

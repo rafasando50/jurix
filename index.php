@@ -24,7 +24,7 @@ if (isset($_SESSION['login_error'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Sistema de Gestión Documental</title>
+    <title>Iniciar Sesión - SISCORL</title>
     <!-- Bootstrap 5 CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome para Iconos -->
@@ -43,7 +43,7 @@ if (isset($_SESSION['login_error'])) {
             
             <!-- Encabezado -->
             <h2 class="text-center fw-bold mb-1 fs-3 text-dark">Bienvenido</h2>
-            <p class="text-center text-muted mb-4 fs-6">Gestión Documental y Poderes</p>
+            <p class="text-center text-muted mb-4 fs-6">SISCORL</p>
 
             <!-- Mensaje de Error (si existe) -->
             <?php if (!empty($error_message)): ?>

@@ -112,7 +112,7 @@ try {
             $acreditados_map[$row_acred['documento_id']][] = $row_acred['nombre'];
         }
 
-        $stmt_soc = $pdo->prepare("SELECT documento_id, nombre, numero_acciones, valor_nominal, tipo_capital 
+        $stmt_soc = $pdo->prepare("SELECT documento_id, nombre, nacionalidad, domicilio_social, numero_acciones, valor_nominal, tipo_capital 
                                    FROM documento_socios 
                                    WHERE documento_id IN ($placeholders)");
         $stmt_soc->execute($doc_ids);
@@ -204,7 +204,7 @@ try {
             <div class="col-12">
                 <div class="p-4 rounded-4" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.08) 0%, rgba(30, 64, 175, 0.04) 100%); border: 1px solid rgba(29, 78, 216, 0.15);">
                     <h2 class="fw-bold text-dark mb-2">¡Hola de nuevo, <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>!</h2>
-                    <p class="text-muted mb-0 fs-5">Bienvenido al Sistema de Gestión Documental y Poderes Jurídicos. Desde aquí puedes gestionar las actas, poderes y alcances legales.</p>
+                    <p class="text-muted mb-0 fs-5">Bienvenido a SISCORL. Desde aquí puedes gestionar las actas, poderes y alcances legales.</p>
                 </div>
             </div>
         </div>
@@ -324,9 +324,9 @@ try {
                                             <td>
                                                 <div class="fw-bold text-dark">No. <?php echo htmlspecialchars($doc['numero_instrumento']); ?></div>
                                                 <small class="text-muted d-block">Libro: <?php echo htmlspecialchars($doc['libro']); ?></small>
-                                                <?php if ($doc['tipo'] === 'acta' && !empty($doc['fme'])): ?>
-                                                    <small class="text-dark d-block" style="font-size: 0.75rem;"><strong class="text-secondary">FME:</strong> <?php echo htmlspecialchars($doc['fme']); ?></small>
-                                                <?php endif; ?>
+                                                <?php if (!empty($doc['fme'])): ?>
+                                                     <small class="text-dark d-block" style="font-size: 0.75rem;"><strong class="text-secondary">FME:</strong> <?php echo htmlspecialchars($doc['fme']); ?></small>
+                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <?php
@@ -362,7 +362,7 @@ try {
                                                             </span>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;" title="Empresa / Entidad">
+                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;" title="Nombre / Razón Social">
                                                         <i class="fa-solid fa-building me-1" style="font-size: 0.65rem;"></i><?php echo htmlspecialchars($doc['empresa_nombre'] ?? 'N/A'); ?>
                                                     </span>
                                                 </div>
@@ -391,7 +391,9 @@ try {
                                                 <?php endif; ?>
                                                 <?php if ($doc['tipo'] === 'acta' && isset($socios_map[$doc['id']])): 
                                                     $socios_list = array_map(function($s) {
-                                                        return $s['nombre'] . ' (' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
+                                                        $nacionalidad = !empty($s['nacionalidad']) ? $s['nacionalidad'] : 'Mexicana';
+                                                        $domicilio = !empty($s['domicilio_social']) ? ', ' . $s['domicilio_social'] : '';
+                                                        return $s['nombre'] . ' (' . $nacionalidad . $domicilio . ', ' . $s['numero_acciones'] . ' acc., $' . number_format($s['valor_nominal'], 2) . ' ' . $s['tipo_capital'] . ')';
                                                     }, $socios_map[$doc['id']]);
                                                     $socios_str = implode(', ', $socios_list);
                                                 ?>
@@ -407,6 +409,22 @@ try {
                                                             }
                                                             ?>
                                                         </span>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if ($doc['tipo'] === 'acta' && (!empty($doc['administrador_unico']) || !empty($doc['comisario']))): ?>
+                                                    <div class="mt-1" style="font-size: 0.75rem;">
+                                                        <?php if (!empty($doc['administrador_unico'])): ?>
+                                                            <div class="d-inline-block me-3">
+                                                                <strong class="text-dark"><i class="fa-solid fa-user-tie me-1 text-primary"></i>Adm. Único:</strong>
+                                                                <span class="text-muted"><?php echo htmlspecialchars($doc['administrador_unico']); ?></span>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($doc['comisario'])): ?>
+                                                            <div class="d-inline-block">
+                                                                <strong class="text-dark"><i class="fa-solid fa-user-shield me-1 text-primary"></i>Comisario:</strong>
+                                                                <span class="text-muted"><?php echo htmlspecialchars($doc['comisario']); ?></span>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 <?php endif; ?>
                                             </td>

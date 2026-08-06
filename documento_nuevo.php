@@ -61,16 +61,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tiene_vigencia = isset($_POST['tiene_vigencia']) ? true : false;
     $vigencia = ($tiene_vigencia && !empty($_POST['vigencia'])) ? $_POST['vigencia'] : null;
 
-    // Nuevos campos para actas
-    $fme = ($tipo === 'acta' && isset($_POST['fme'])) ? trim($_POST['fme']) : null;
-    $fecha_registro_rpc = ($tipo === 'acta' && !empty($_POST['fecha_registro_rpc'])) ? trim($_POST['fecha_registro_rpc']) : null;
+    // Nuevos campos para registro RPC
+    $no_aplica_rpc = isset($_POST['no_aplica_rpc']) ? true : false;
+    $fme = (!$no_aplica_rpc && isset($_POST['fme'])) ? trim($_POST['fme']) : null;
+    $fecha_registro_rpc = (!$no_aplica_rpc && !empty($_POST['fecha_registro_rpc'])) ? trim($_POST['fecha_registro_rpc']) : null;
+
+    // Campos opcionales para Actas
+    $administrador_unico = ($tipo === 'acta' && isset($_POST['administrador_unico'])) ? trim($_POST['administrador_unico']) : null;
+    $comisario = ($tipo === 'acta' && isset($_POST['comisario'])) ? trim($_POST['comisario']) : null;
 
     // Validar campos obligatorios
     $es_valido = true;
     if (empty($numero_instrumento) || empty($libro) || empty($fecha_expedicion) || empty($notaria) || empty($ciudad_notaria) || empty($estado_notaria) || empty($notario) || empty($tipo) || empty($concepto)) {
         $es_valido = false;
     }
-    if ($tipo === 'acta' && (empty($fme) || empty($fecha_registro_rpc))) {
+    if (!$no_aplica_rpc && (empty($fme) || empty($fecha_registro_rpc))) {
         $es_valido = false;
     }
 
@@ -109,8 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error_message)) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO documentos 
-                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, estado_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path, revoca_documento_id, empresa_id, fme, fecha_registro_rpc) 
-                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :estado_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path, :revoca_documento_id, :empresa_id, :fme, :fecha_registro_rpc)");
+                    (numero_instrumento, libro, fecha_expedicion, notaria, ciudad_notaria, estado_notaria, notario, tipo, subtipo, concepto, vigencia, archivo_path, revoca_documento_id, empresa_id, fme, fecha_registro_rpc, administrador_unico, comisario) 
+                    VALUES (:numero_instrumento, :libro, :fecha_expedicion, :notaria, :ciudad_notaria, :estado_notaria, :notario, :tipo, :subtipo, :concepto, :vigencia, :archivo_path, :revoca_documento_id, :empresa_id, :fme, :fecha_registro_rpc, :administrador_unico, :comisario)");
                 
                 $stmt->execute([
                     'numero_instrumento' => $numero_instrumento,
@@ -128,7 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'revoca_documento_id' => $revoca_documento_id,
                     'empresa_id' => $empresa_id,
                     'fme' => $fme,
-                    'fecha_registro_rpc' => $fecha_registro_rpc
+                    'fecha_registro_rpc' => $fecha_registro_rpc,
+                    'administrador_unico' => $administrador_unico,
+                    'comisario' => $comisario
                 ]);
 
                 $documento_id = $pdo->lastInsertId();
@@ -136,16 +143,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Guardar socios si es acta
                 if ($tipo === 'acta' && isset($_POST['socio_nombre'])) {
                     $socio_nombres = $_POST['socio_nombre'];
+                    $socio_nacionalidades = $_POST['socio_nacionalidad'] ?? [];
+                    $socio_domicilios = $_POST['socio_domicilio'] ?? [];
                     $socio_acciones = $_POST['socio_acciones'] ?? [];
                     $socio_valores = $_POST['socio_valor'] ?? [];
                     $socio_capitales = $_POST['socio_capital'] ?? [];
 
-                    $stmt_ins_socio = $pdo->prepare("INSERT INTO documento_socios (documento_id, nombre, numero_acciones, valor_nominal, tipo_capital) VALUES (:documento_id, :nombre, :numero_acciones, :valor_nominal, :tipo_capital)");
+                    $stmt_ins_socio = $pdo->prepare("INSERT INTO documento_socios (documento_id, nombre, nacionalidad, domicilio_social, numero_acciones, valor_nominal, tipo_capital) VALUES (:documento_id, :nombre, :nacionalidad, :domicilio_social, :numero_acciones, :valor_nominal, :tipo_capital)");
 
                     for ($i = 0; $i < count($socio_nombres); $i++) {
                         $s_nombre = trim($socio_nombres[$i]);
                         if (empty($s_nombre)) continue;
 
+                        $s_nacionalidad = isset($socio_nacionalidades[$i]) ? trim($socio_nacionalidades[$i]) : 'Mexicana';
+                        $s_domicilio = isset($socio_domicilios[$i]) ? trim($socio_domicilios[$i]) : null;
                         $s_acciones = isset($socio_acciones[$i]) ? trim($socio_acciones[$i]) : null;
                         $s_valor = (isset($socio_valores[$i]) && $socio_valores[$i] !== '') ? floatval($socio_valores[$i]) : null;
                         $s_capital = isset($socio_capitales[$i]) ? trim($socio_capitales[$i]) : null;
@@ -153,6 +164,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt_ins_socio->execute([
                             'documento_id' => $documento_id,
                             'nombre' => $s_nombre,
+                            'nacionalidad' => $s_nacionalidad,
+                            'domicilio_social' => $s_domicilio,
                             'numero_acciones' => $s_acciones,
                             'valor_nominal' => $s_valor,
                             'tipo_capital' => $s_capital
@@ -273,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
 
                             <div class="col-md-4">
-                                <label for="empresa_id" class="form-label">Empresa / Entidad *</label>
+                                <label for="empresa_id" class="form-label">Nombre / Razón Social *</label>
                                 <select class="form-control" id="empresa_id" name="empresa_id" required>
                                     <?php foreach ($empresas as $emp): ?>
                                         <option value="<?php echo $emp['id']; ?>" <?php echo ($emp['nombre'] === 'N/A') ? 'selected' : ''; ?>>
@@ -334,15 +347,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             </div>
 
-                        <!-- Nuevos Campos de Expedición para Actas (FME y RPC) -->
-                        <div class="row g-3 mb-4 d-none" id="campos_acta_expedicion">
+                        <!-- Switch para Datos de Registro en el RPC -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-12">
+                                <div class="form-check form-switch pt-2">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="no_aplica_rpc" name="no_aplica_rpc" onchange="toggleRPCInput()">
+                                    <label class="form-check-label fw-medium text-dark" for="no_aplica_rpc">No aplica registro en el RPC (Folio Mercantil Electrónico / Fecha RPC)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Campos de Expedición para RPC -->
+                        <div class="row g-3 mb-4" id="campos_acta_expedicion">
                             <div class="col-md-6">
                                 <label for="fme" class="form-label">FME (Folio Mercantil Electrónico) del RPC *</label>
-                                <input type="text" class="form-control" id="fme" name="fme" placeholder="Ej. N-2023045612">
+                                <input type="text" class="form-control" id="fme" name="fme" placeholder="Ej. N-2023045612" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="fecha_registro_rpc" class="form-label">Fecha de Registro en el RPC *</label>
-                                <input type="date" class="form-control" id="fecha_registro_rpc" name="fecha_registro_rpc">
+                                <input type="date" class="form-control" id="fecha_registro_rpc" name="fecha_registro_rpc" required>
                             </div>
                         </div>
 
@@ -358,6 +381,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <thead class="table-light">
                                         <tr>
                                             <th>Nombre del Socio *</th>
+                                            <th>Nacionalidad *</th>
+                                            <th>Domicilio Social *</th>
                                             <th>Número de Acciones / Certificados *</th>
                                             <th>Valor Nominal *</th>
                                             <th>Tipo de Capital *</th>
@@ -370,9 +395,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </table>
                             </div>
                             
-                            <button type="button" class="btn btn-outline-primary rounded-3 py-2 px-3 btn-sm d-flex align-items-center gap-2" onclick="agregarSocioRow()">
-                                <i class="fa-solid fa-plus"></i> Agregar Socio
-                            </button>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <button type="button" class="btn btn-outline-primary rounded-3 py-2 px-3 btn-sm d-flex align-items-center gap-2" onclick="agregarSocioRow()">
+                                    <i class="fa-solid fa-plus"></i> Agregar Socio
+                                </button>
+                            </div>
+
+                            <!-- Campos de Administración y Vigilancia (solo aplicables a Actas) -->
+                            <div class="row g-3 mt-3 pt-3 border-top">
+                                <div class="col-md-6">
+                                    <label for="administrador_unico" class="form-label fw-bold text-dark">Administrador Único / Presidente del Consejo</label>
+                                    <input type="text" class="form-control" id="administrador_unico" name="administrador_unico" placeholder="Nombre completo">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="comisario" class="form-label fw-bold text-dark">Comisario</label>
+                                    <input type="text" class="form-control" id="comisario" name="comisario" placeholder="Nombre completo">
+                                </div>
+                            </div>
                         </div>
  
                          <!-- Sección 3: Concepto y Vigencia -->
@@ -429,7 +468,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 let socioIndex = 0;
 
-function agregarSocioRow(nombre = '', acciones = '', valor = '', capital = 'fijo') {
+function agregarSocioRow(nombre = '', nacionalidad = 'Mexicana', domicilio = '', acciones = '', valor = '', capital = 'fijo') {
     const tbody = document.getElementById('socios-tbody');
     const tr = document.createElement('tr');
     tr.id = `socio-row-${socioIndex}`;
@@ -437,6 +476,12 @@ function agregarSocioRow(nombre = '', acciones = '', valor = '', capital = 'fijo
     tr.innerHTML = `
         <td>
             <input type="text" class="form-control" name="socio_nombre[]" value="${nombre}" placeholder="Nombre completo" required>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="socio_nacionalidad[]" value="${nacionalidad}" placeholder="Ej. Mexicana" required>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="socio_domicilio[]" value="${domicilio}" placeholder="Calle, Nro, Col., CP, Ciudad" required>
         </td>
         <td>
             <input type="text" class="form-control" name="socio_acciones[]" value="${acciones}" placeholder="Ej. 100" required>
@@ -534,10 +579,6 @@ function actualizarSubtipos() {
     }
 
     // --- CAMBIOS PARA ACTAS ---
-    const camposActaExpedicion = document.getElementById('campos_acta_expedicion');
-    const fmeInput = document.getElementById('fme');
-    const rpcInput = document.getElementById('fecha_registro_rpc');
-    
     const seccionSocios = document.getElementById('seccion_socios');
     
     const personasAcreditadasContainer = document.getElementById('personas_acreditadas_container');
@@ -548,11 +589,6 @@ function actualizarSubtipos() {
     const vigenciaInput = document.getElementById('vigencia');
 
     if (valorTipo === 'acta') {
-        // Mostrar FME y RPC, hacerlos requeridos
-        camposActaExpedicion.classList.remove('d-none');
-        fmeInput.required = true;
-        rpcInput.required = true;
-        
         // Mostrar Sección de Socios
         seccionSocios.classList.remove('d-none');
         const tbody = document.getElementById('socios-tbody');
@@ -572,22 +608,36 @@ function actualizarSubtipos() {
         vigenciaInput.value = '';
         vigenciaInput.required = false;
     } else {
-        // Ocultar FME y RPC
-        camposActaExpedicion.classList.add('d-none');
-        fmeInput.required = false;
-        fmeInput.value = '';
-        rpcInput.required = false;
-        rpcInput.value = '';
-        
         // Ocultar Sección de Socios, limpiar filas
         seccionSocios.classList.add('d-none');
         document.getElementById('socios-tbody').innerHTML = '';
+        document.getElementById('administrador_unico').value = '';
+        document.getElementById('comisario').value = '';
         
         // Mostrar Personas Acreditadas
         personasAcreditadasContainer.classList.remove('d-none');
         
         // Habilitar switch de Vigencia
         tieneVigenciaSwitch.disabled = false;
+    }
+}
+
+function toggleRPCInput() {
+    const noAplicaRPC = document.getElementById('no_aplica_rpc').checked;
+    const camposActaExpedicion = document.getElementById('campos_acta_expedicion');
+    const fmeInput = document.getElementById('fme');
+    const rpcInput = document.getElementById('fecha_registro_rpc');
+
+    if (noAplicaRPC) {
+        camposActaExpedicion.classList.add('d-none');
+        fmeInput.required = false;
+        fmeInput.value = '';
+        rpcInput.required = false;
+        rpcInput.value = '';
+    } else {
+        camposActaExpedicion.classList.remove('d-none');
+        fmeInput.required = true;
+        rpcInput.required = true;
     }
 }
 
