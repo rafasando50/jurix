@@ -148,7 +148,16 @@ if (isset($pdo)) {
                     Tienes <strong><?php echo $notify_count; ?></strong> documento(s) próximo(s) a vencer en los siguientes 15 días.
                 </div>
             </div>
-            
+
+            <div class="d-flex gap-2 mb-3 animate-fade-in">
+                <a href="exportar.php?tipo=expirar&formato=excel" class="btn btn-sm btn-outline-success w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" style="font-size: 0.8rem; border: 1px solid #22c55e !important; color: #15803d !important;">
+                    <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                </a>
+                <a href="exportar.php?tipo=expirar&formato=pdf" target="_blank" class="btn btn-sm btn-outline-danger w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" style="font-size: 0.8rem; border: 1px solid #ef4444 !important; color: #b91c1c !important;">
+                    <i class="fa-solid fa-file-pdf"></i> Exportar PDF
+                </a>
+            </div>
+
             <div class="d-flex flex-column gap-3">
                 <?php foreach ($expiring_docs as $doc): 
                     // Calcular días restantes

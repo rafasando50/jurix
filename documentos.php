@@ -158,6 +158,31 @@ function getVigenciaBadge($fecha_vigencia, $revocacion_id = null, $revocacion_in
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Documentos</span>
             <div class="ms-auto d-flex align-items-center gap-3">
+                <?php
+                // Construir los enlaces de exportación manteniendo todos los filtros actuales de la búsqueda en documentos.php
+                $query_excel = $_GET;
+                $query_excel['formato'] = 'excel';
+                $link_excel = 'exportar.php?' . http_build_query($query_excel);
+
+                $query_pdf = $_GET;
+                $query_pdf['formato'] = 'pdf';
+                $link_pdf = 'exportar.php?' . http_build_query($query_pdf);
+                
+                // Texto personalizado del botón según la sección
+                $btn_text = 'Exportar Reporte';
+                if ($tipo === 'poder') $btn_text = 'Exportar Poderes';
+                elseif ($tipo === 'acta') $btn_text = 'Exportar Actas';
+                elseif ($tipo === 'revocacion') $btn_text = 'Exportar Revocaciones';
+                ?>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary py-2 px-3 rounded-3 d-flex align-items-center gap-2 dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-file-export"></i> <?php echo htmlspecialchars($btn_text); ?>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3" aria-labelledby="exportDropdown" style="font-size: 0.85rem; border: 1px solid #e2e8f0 !important;">
+                        <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" href="<?php echo htmlspecialchars($link_excel); ?>"><i class="fa-solid fa-file-excel text-success fs-6"></i> Exportar a Excel</a></li>
+                        <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" href="<?php echo htmlspecialchars($link_pdf); ?>" target="_blank"><i class="fa-solid fa-file-pdf text-danger fs-6"></i> Exportar a PDF</a></li>
+                    </ul>
+                </div>
                 <?php if ($_SESSION['user_rol'] !== 'usuario'): ?>
                 <a href="documento_nuevo.php" class="btn btn-primary-custom py-2 px-3 rounded-3 d-flex align-items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Nuevo Documento
