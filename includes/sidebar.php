@@ -104,7 +104,7 @@ if (isset($pdo)) {
         <li class="<?php echo ($current_page === 'empresas.php') ? 'active' : ''; ?>">
             <a href="empresas.php">
                 <i class="fa-solid fa-building"></i>
-                <span>Nombres / Razones Sociales</span>
+                <span>Empresas</span>
             </a>
         </li>
         <?php endif; ?>

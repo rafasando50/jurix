@@ -53,11 +53,12 @@ try {
     $total_docs = (int)$stmt->fetchColumn();
 
     // Total Empresas
-    $stmt = $pdo->query("SELECT COUNT(*) FROM empresas");
+    $stmt = $pdo->query("SELECT COUNT(*) FROM empresas WHERE tipo = 'empresa' OR tipo IS NULL OR tipo = ''");
     $total_empresas = (int)$stmt->fetchColumn();
 
-    // Total Personas Físicas (Placeholder, siempre 0)
-    $total_personas_fisicas = 0;
+    // Total Personas Físicas
+    $stmt = $pdo->query("SELECT COUNT(*) FROM empresas WHERE tipo = 'persona'");
+    $total_personas_fisicas = (int)$stmt->fetchColumn();
 
     // --- ACTAS ---
     // Total Actas

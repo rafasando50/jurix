@@ -70,6 +70,12 @@ try {
     }
 
     try {
+        $pdo->exec("ALTER TABLE `empresas` ADD COLUMN `tipo` VARCHAR(20) NOT NULL DEFAULT 'empresa'");
+    } catch (PDOException $ex) {
+        // Ignorar si ya existe
+    }
+
+    try {
         $pdo->exec("ALTER TABLE documentos ADD COLUMN empresa_id INT DEFAULT NULL");
     } catch (PDOException $ex) {
         // Ignorar si ya existe
@@ -257,6 +263,12 @@ try {
             rfc TEXT DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+
+        try {
+            $pdo->exec("ALTER TABLE empresas ADD COLUMN tipo TEXT DEFAULT 'empresa'");
+        } catch (PDOException $e) {
+            // Ignorar si ya existe
+        }
 
         // Insertar empresa por defecto "N/A" si no hay registros
         $stmt_emp = $pdo->query("SELECT COUNT(*) FROM empresas WHERE nombre = 'N/A'");

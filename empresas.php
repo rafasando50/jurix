@@ -26,18 +26,20 @@ $edit_mode = false;
 $edit_id = 0;
 $edit_nombre = '';
 $edit_rfc = '';
+$edit_tipo = 'empresa';
 
 // Cargar datos para edición si se solicita por GET
 if (isset($_GET['edit'])) {
     $edit_id = (int)$_GET['edit'];
     try {
-        $stmt_edit = $pdo->prepare("SELECT id, nombre, rfc FROM empresas WHERE id = :id");
+        $stmt_edit = $pdo->prepare("SELECT id, nombre, rfc, tipo FROM empresas WHERE id = :id");
         $stmt_edit->execute(['id' => $edit_id]);
         $emp_edit = $stmt_edit->fetch();
         if ($emp_edit) {
             $edit_mode = true;
             $edit_nombre = $emp_edit['nombre'];
             $edit_rfc = $emp_edit['rfc'];
+            $edit_tipo = !empty($emp_edit['tipo']) ? $emp_edit['tipo'] : 'empresa';
         }
     } catch (PDOException $e) {
         error_log("Error al cargar empresa para editar: " . $e->getMessage());
@@ -52,6 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     if ($accion === 'registrar') {
         $nombre = trim($_POST['nombre']);
         $rfc = trim($_POST['rfc']);
+        $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : 'empresa';
+        if (!in_array($tipo, ['empresa', 'persona'])) {
+            $tipo = 'empresa';
+        }
 
         if (empty($nombre)) {
             $error = "El nombre de la empresa es obligatorio.";
@@ -63,15 +69,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 if ($stmt->fetch()) {
                     $error = "Ya existe una empresa registrada con ese nombre.";
                 } else {
-                    $stmt = $pdo->prepare("INSERT INTO empresas (nombre, rfc) VALUES (:nombre, :rfc)");
+                    $stmt = $pdo->prepare("INSERT INTO empresas (nombre, rfc, tipo) VALUES (:nombre, :rfc, :tipo)");
                     $stmt->execute([
                         'nombre' => $nombre,
-                        'rfc' => !empty($rfc) ? $rfc : null
+                        'rfc' => !empty($rfc) ? $rfc : null,
+                        'tipo' => $tipo
                     ]);
-                    $success = "Empresa registrada exitosamente.";
+                    $success = "Empresa/Persona registrada exitosamente.";
                 }
             } catch (PDOException $e) {
-                $error = "Error al registrar la empresa: " . $e->getMessage();
+                $error = "Error al registrar la empresa/persona: " . $e->getMessage();
             }
         }
     }
@@ -81,9 +88,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $id = (int)$_POST['id'];
         $nombre = trim($_POST['nombre']);
         $rfc = trim($_POST['rfc']);
+        $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : 'empresa';
+        if (!in_array($tipo, ['empresa', 'persona'])) {
+            $tipo = 'empresa';
+        }
 
         if (empty($nombre)) {
-            $error = "El nombre de la empresa es obligatorio.";
+            $error = "El nombre es obligatorio.";
         } else {
             try {
                 // Si la empresa es N/A no permitir cambiarle el nombre
@@ -98,20 +109,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $stmt = $pdo->prepare("SELECT id FROM empresas WHERE nombre = :nombre AND id != :id LIMIT 1");
                     $stmt->execute(['nombre' => $nombre, 'id' => $id]);
                     if ($stmt->fetch()) {
-                        $error = "Ya existe otra empresa registrada con ese nombre.";
+                        $error = "Ya existe otro registro con ese nombre.";
                     } else {
-                        $stmt = $pdo->prepare("UPDATE empresas SET nombre = :nombre, rfc = :rfc WHERE id = :id");
+                        $stmt = $pdo->prepare("UPDATE empresas SET nombre = :nombre, rfc = :rfc, tipo = :tipo WHERE id = :id");
                         $stmt->execute([
                             'nombre' => $nombre,
                             'rfc' => !empty($rfc) ? $rfc : null,
+                            'tipo' => $tipo,
                             'id' => $id
                         ]);
-                        $success = "Empresa actualizada exitosamente.";
+                        $success = "Registro actualizado exitosamente.";
                         $edit_mode = false; // Salir de modo edición
                     }
                 }
             } catch (PDOException $e) {
-                $error = "Error al actualizar la empresa: " . $e->getMessage();
+                $error = "Error al actualizar: " . $e->getMessage();
             }
         }
     }
@@ -135,31 +147,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $count_docs = (int)$stmt_docs->fetchColumn();
 
                 if ($count_docs > 0) {
-                    $error = "No se puede eliminar la empresa porque tiene {$count_docs} documento(s) asociado(s). Reasigne o elimine los documentos primero.";
+                    $error = "No se puede eliminar porque tiene {$count_docs} documento(s) asociado(s). Reasigne o elimine los documentos primero.";
                 } else {
                     $stmt = $pdo->prepare("DELETE FROM empresas WHERE id = :id");
                     $stmt->execute(['id' => $id]);
-                    $success = "Empresa eliminada correctamente.";
+                    $success = "Eliminado correctamente.";
                 }
             }
         } catch (PDOException $e) {
-            $error = "Error al eliminar la empresa: " . $e->getMessage();
+            $error = "Error al eliminar: " . $e->getMessage();
         }
     }
 }
 
-// Obtener listado de todas las empresas con conteo de documentos
+// Obtener listado de todas las empresas con conteo de documentos y tipo
 try {
-    $sql = "SELECT e.id, e.nombre, e.rfc, e.created_at, COUNT(d.id) as total_documentos 
+    $sql = "SELECT e.id, e.nombre, e.rfc, e.tipo, e.created_at, COUNT(d.id) as total_documentos 
             FROM empresas e 
             LEFT JOIN documentos d ON e.id = d.empresa_id 
-            GROUP BY e.id, e.nombre, e.rfc, e.created_at 
+            GROUP BY e.id, e.nombre, e.rfc, e.tipo, e.created_at 
             ORDER BY e.nombre ASC";
     $stmt = $pdo->query($sql);
     $empresas = $stmt->fetchAll();
 } catch (PDOException $e) {
     error_log("Error al consultar empresas: " . $e->getMessage());
     $empresas = [];
+}
+
+$count_empresas = 0;
+$count_personas = 0;
+foreach ($empresas as $emp) {
+    if (isset($emp['tipo']) && $emp['tipo'] === 'persona') {
+        $count_personas++;
+    } else {
+        $count_empresas++;
+    }
 }
 
 // Incluir cabecera
@@ -175,10 +197,13 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Barra Superior de Navegación Rápida -->
     <nav class="navbar navbar-top navbar-expand-lg navbar-light bg-transparent">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Nombres / Razones Sociales</span>
-            <div class="ms-auto d-flex align-items-center gap-3">
+            <span class="navbar-brand mb-0 h1 fw-bold fs-4">Gestión de Empresas y Personas</span>
+            <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2 fw-semibold">
-                    <i class="fa-solid fa-building me-1"></i> <?php echo count($empresas); ?> Registradas
+                    <i class="fa-solid fa-building me-1"></i> <?php echo $count_empresas; ?> Empresas
+                </span>
+                <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3 py-2 fw-semibold">
+                    <i class="fa-solid fa-user me-1"></i> <?php echo $count_personas; ?> Personas
                 </span>
             </div>
         </div>
@@ -234,7 +259,11 @@ require_once __DIR__ . '/includes/sidebar.php';
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3 text-primary fw-bold" style="width: 38px; height: 38px; font-size: 0.9rem;">
+                                                    <?php 
+                                                    $is_persona = (isset($e['tipo']) && $e['tipo'] === 'persona');
+                                                    $avatar_class = $is_persona ? 'bg-info bg-opacity-10 text-info' : 'bg-primary bg-opacity-10 text-primary';
+                                                    ?>
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3 fw-bold <?php echo $avatar_class; ?>" style="width: 38px; height: 38px; font-size: 0.9rem;">
                                                         <?php 
                                                         $initials = '';
                                                         $words = explode(' ', $e['nombre']);
@@ -250,6 +279,11 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                             <?php echo htmlspecialchars($e['nombre']); ?>
                                                             <?php if ($e['nombre'] === 'N/A'): ?>
                                                                 <span class="badge bg-secondary rounded-pill fw-medium ms-1" style="font-size: 0.7rem;">Defecto</span>
+                                                            <?php endif; ?>
+                                                            <?php if ($is_persona): ?>
+                                                                <span class="badge bg-info bg-opacity-10 text-info rounded-pill fw-semibold ms-1" style="font-size: 0.7rem;"><i class="fa-solid fa-user me-1" style="font-size: 0.65rem;"></i>Persona Física</span>
+                                                            <?php elseif (isset($e['tipo']) && $e['tipo'] === 'empresa' && $e['nombre'] !== 'N/A'): ?>
+                                                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill fw-semibold ms-1" style="font-size: 0.7rem;"><i class="fa-solid fa-building me-1" style="font-size: 0.65rem;"></i>Empresa</span>
                                                             <?php endif; ?>
                                                         </div>
                                                     </div>
@@ -306,7 +340,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div class="p-4 rounded-4 bg-white" style="border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);">
                     <h5 class="fw-bold text-dark mb-4">
                         <i class="fa-solid <?php echo $edit_mode ? 'fa-pen-to-square' : 'fa-plus'; ?> text-primary me-2"></i>
-                        <?php echo $edit_mode ? 'Editar Empresa' : 'Registrar Empresa'; ?>
+                        <?php echo $edit_mode ? 'Editar Registro' : 'Registrar Empresa / Persona'; ?>
                     </h5>
                     
                     <form method="POST" action="empresas.php">
@@ -315,8 +349,27 @@ require_once __DIR__ . '/includes/sidebar.php';
                             <input type="hidden" name="id" value="<?php echo $edit_id; ?>">
                         <?php endif; ?>
                         
+                        <!-- Selector de Tipo (Empresa / Persona) -->
                         <div class="mb-3">
-                            <label for="nombre" class="form-label fw-bold text-dark" style="font-size: 0.85rem;">Nombre / Razón Social *</label>
+                            <label class="form-label fw-bold text-dark mb-2" style="font-size: 0.85rem;">Tipo de Registro *</label>
+                            <div class="btn-group w-100" role="group" aria-label="Tipo de Registro">
+                                <input type="radio" class="btn-check" name="tipo" id="tipo_empresa" value="empresa" <?php echo ($edit_tipo === 'empresa') ? 'checked' : ''; ?> <?php echo ($edit_nombre === 'N/A') ? 'disabled' : ''; ?>>
+                                <label class="btn btn-outline-primary py-2 fw-semibold" for="tipo_empresa" style="font-size: 0.85rem; border-top-left-radius: 12px; border-bottom-left-radius: 12px;">
+                                    <i class="fa-solid fa-building me-1"></i> Empresa
+                                </label>
+
+                                <input type="radio" class="btn-check" name="tipo" id="tipo_persona" value="persona" <?php echo ($edit_tipo === 'persona') ? 'checked' : ''; ?> <?php echo ($edit_nombre === 'N/A') ? 'disabled' : ''; ?>>
+                                <label class="btn btn-outline-primary py-2 fw-semibold" for="tipo_persona" style="font-size: 0.85rem; border-top-right-radius: 12px; border-bottom-right-radius: 12px;">
+                                    <i class="fa-solid fa-user me-1"></i> Persona Física
+                                </label>
+                            </div>
+                            <?php if ($edit_nombre === 'N/A'): ?>
+                                <input type="hidden" name="tipo" value="empresa">
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="mb-3">
+                            <label id="label-nombre" for="nombre" class="form-label fw-bold text-dark" style="font-size: 0.85rem;">Nombre / Razón Social *</label>
                             <input type="text" class="form-control rounded-3" id="nombre" name="nombre" placeholder="Ej. Einsur Supply S.A. de C.V." value="<?php echo htmlspecialchars($edit_nombre); ?>" required <?php echo ($edit_nombre === 'N/A') ? 'readonly' : ''; ?> style="border-color: #cbd5e1; padding: 0.6rem 0.8rem;">
                             <?php if ($edit_nombre === 'N/A'): ?>
                                 <small class="text-muted">La empresa por defecto "N/A" no se puede renombrar.</small>
@@ -330,7 +383,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary-custom w-100 py-2.5 rounded-3 fw-bold">
-                                <i class="fa-solid fa-save me-1"></i> <?php echo $edit_mode ? 'Guardar Cambios' : 'Guardar Empresa'; ?>
+                                <i class="fa-solid fa-save me-1"></i> <?php echo $edit_mode ? 'Guardar Cambios' : 'Guardar Registro'; ?>
                             </button>
                             <?php if ($edit_mode): ?>
                                 <a href="empresas.php" class="btn btn-outline-secondary w-100 py-2.5 rounded-3 fw-bold">
@@ -349,7 +402,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 <script>
 function confirmarEliminar(id) {
-    if (confirm("¿Está seguro de que desea eliminar permanentemente esta empresa? Esta acción no se puede deshacer y solo es válida si la empresa no tiene documentos asociados.")) {
+    if (confirm("¿Está seguro de que desea eliminar permanentemente este registro? Esta acción no se puede deshacer y solo es válida si no tiene documentos asociados.")) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = 'empresas.php';
@@ -370,6 +423,29 @@ function confirmarEliminar(id) {
         form.submit();
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const radioEmpresa = document.getElementById('tipo_empresa');
+    const radioPersona = document.getElementById('tipo_persona');
+    const labelNombre = document.getElementById('label-nombre');
+    const inputNombre = document.getElementById('nombre');
+
+    function updateFields() {
+        if (radioPersona && radioPersona.checked) {
+            if (labelNombre) labelNombre.innerHTML = 'Nombre Completo *';
+            if (inputNombre) inputNombre.placeholder = 'Ej. Juan Pérez García';
+        } else {
+            if (labelNombre) labelNombre.innerHTML = 'Nombre / Razón Social *';
+            if (inputNombre) inputNombre.placeholder = 'Ej. Einsur Supply S.A. de C.V.';
+        }
+    }
+
+    if (radioEmpresa && radioPersona) {
+        radioEmpresa.addEventListener('change', updateFields);
+        radioPersona.addEventListener('change', updateFields);
+        updateFields();
+    }
+});
 </script>
 
 <?php
